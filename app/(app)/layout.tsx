@@ -9,7 +9,11 @@ import {
 } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 
-export default async function AppLayout({ children }: LayoutProps<'/'>) {
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

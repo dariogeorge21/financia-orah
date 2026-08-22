@@ -13,7 +13,11 @@ export const metadata: Metadata = {
   description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"

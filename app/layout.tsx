@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Figtree } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,49 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Orah Financia · Campus Meet 2026",
   description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+  applicationName: "Orah Financia",
+  keywords: [
+    "Orah",
+    "Financia",
+    "Campus Meet 2026",
+    "Jesus Youth",
+    "Pala Missionaries",
+    "Finance Dashboard",
+    "Income Tracker",
+    "Expense Manager",
+    "Budget Planning",
+    "Reimbursement Tracking",
+    "Finance Calls"
+  ],
+  authors: [{ name: "Jesus Youth Pala Missionaries" }],
+  creator: "Jesus Youth Pala Missionaries",
+  publisher: "Jesus Youth Pala Missionaries",
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    url: "https://financia.orah.in",
+    title: "Orah Financia · Campus Meet 2026",
+    description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+    siteName: "Orah Financia",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Orah Financia · Campus Meet 2026",
+    description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+  },
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f172a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

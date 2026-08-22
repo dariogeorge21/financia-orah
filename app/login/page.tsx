@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,9 +45,13 @@ export default function LoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo / Brand */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/30">
-            <span className="text-2xl">₹</span>
-          </div>
+          <Image
+            src="/jyLogo.png"
+            alt="JY Logo"
+            width={80}
+            height={80}
+            className="mx-auto mb-4 rounded-full border border-white/20 bg-white/5 p-2 shadow-lg shadow-indigo-500/20"
+          />
           <h1 className="text-2xl font-bold text-white tracking-tight">Orah Financia</h1>
           <p className="mt-1 text-sm text-slate-400">Campus Meet 2026 · Financial Dashboard</p>
         </div>

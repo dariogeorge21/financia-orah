@@ -31,6 +31,8 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
     mobile_number: '',
     caller_name: '',
     promised: '',
+    received: '',
+    money_type: 'UPI' as 'Cash' | 'UPI',
     notes: '',
   });
 
@@ -48,6 +50,12 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
       return;
     }
 
+    const receivedNum = form.received ? parseFloat(form.received) : 0;
+    if (isNaN(receivedNum) || receivedNum < 0) {
+      setError('Received amount must be 0 or greater.');
+      return;
+    }
+
     startTransition(async () => {
       try {
         await createFinanceCall({
@@ -55,8 +63,9 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           mobile_number: form.mobile_number.trim() || null,
           caller_name: form.caller_name.trim() || null,
           promised: promisedNum,
-          received: 0,
-          status: 'Pending',
+          received: receivedNum,
+          money_type: form.money_type,
+          status: receivedNum >= promisedNum ? 'Fully Received' : receivedNum > 0 ? 'Partially Received' : 'Pending',
           notes: form.notes.trim() || null,
         });
 
@@ -66,6 +75,8 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           mobile_number: '',
           caller_name: '',
           promised: '',
+          received: '',
+          money_type: 'UPI',
           notes: '',
         });
         onSuccess?.();
@@ -106,7 +117,7 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
         <DialogHeader>
           <DialogTitle>Add Finance Call Entry</DialogTitle>
           <DialogDescription>
-            Record a pledge or commitment received during finance calling drives via server API.
+            Record a pledge or commitment received during finance calling drives. Received funds are automatically logged to Incomes and the Dashboard.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
@@ -143,26 +154,70 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="fc-amount">Promised Amount (₹)</Label>
-              {form.promised && !isNaN(parseFloat(form.promised)) && (
-                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
-                  {formatINR(parseFloat(form.promised))}
-                </span>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="fc-amount">Promised (₹)</Label>
+                {form.promised && !isNaN(parseFloat(form.promised)) && (
+                  <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                    {formatINR(parseFloat(form.promised))}
+                  </span>
+                )}
+              </div>
+              <Input
+                id="fc-amount"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="e.g. 10000"
+                value={form.promised}
+                onChange={(e) => set('promised', e.target.value)}
+                required
+              />
             </div>
-            <Input
-              id="fc-amount"
-              type="number"
-              min="1"
-              step="1"
-              placeholder="e.g. 10000"
-              value={form.promised}
-              onChange={(e) => set('promised', e.target.value)}
-              required
-            />
+
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="fc-received">Received Now (₹)</Label>
+                {form.received && !isNaN(parseFloat(form.received)) && (
+                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    {formatINR(parseFloat(form.received))}
+                  </span>
+                )}
+              </div>
+              <Input
+                id="fc-received"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="0"
+                value={form.received}
+                onChange={(e) => set('received', e.target.value)}
+              />
+            </div>
           </div>
+
+          {form.received && parseFloat(form.received) > 0 ? (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="fc-money-type">Payment Mode (Received Funds)</Label>
+              <div className="flex gap-2">
+                {(['UPI', 'Cash'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => set('money_type', m)}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                      form.money_type === m
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card border-border hover:bg-muted text-foreground'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-1.5">
             <Label htmlFor="fc-notes">Call Notes / Follow-up Details (Optional)</Label>

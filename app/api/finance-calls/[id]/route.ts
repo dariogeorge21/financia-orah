@@ -130,6 +130,47 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    // Ensure income record reflects new received amount
+    if (updatedCall.received > 0 && updatedCall.status !== 'Cancelled') {
+      const { data: incRows } = await supabase
+        .from('income')
+        .select('amount')
+        .or(`reference_id.eq.${callId},commitment_id.eq.${callId}`);
+
+      const totalInc = (incRows ?? []).reduce((s, r) => s + Number(r.amount), 0);
+      if (updatedCall.received > totalInc) {
+        const diffAmt = updatedCall.received - totalInc;
+        const { data: allIncIds } = await supabase.from('income').select('id');
+        let maxIncNum = 0;
+        if (allIncIds) {
+          for (const item of allIncIds) {
+            const m = item.id.match(/^INC-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxIncNum) maxIncNum = n;
+            }
+          }
+        }
+        const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
+        const moneyType = (body.money_type === 'Cash' ? 'Cash' : 'UPI');
+        const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+
+        await supabase.from('income').insert({
+          id: incId,
+          date: incDate,
+          type: 'Finance Call',
+          contributor: updatedCall.person_name,
+          mobile_number: updatedCall.mobile_number || null,
+          description: `Payment against ${callId}`,
+          amount: diffAmt,
+          money_type: moneyType,
+          notes: body.notes || `Payment update for ${callId}`,
+          reference_id: callId,
+          commitment_id: callId,
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: updatedCall,

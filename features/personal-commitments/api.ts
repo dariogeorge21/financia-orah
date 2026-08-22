@@ -38,6 +38,8 @@ export interface CreatePersonalCommitmentInput {
   mobile_number?: string | null;
   promised: number;
   received?: number;
+  money_type?: 'Cash' | 'UPI';
+  date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
 }
@@ -47,6 +49,8 @@ export interface UpdatePersonalCommitmentInput {
   mobile_number?: string | null;
   promised?: number;
   received?: number;
+  money_type?: 'Cash' | 'UPI';
+  date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
 }

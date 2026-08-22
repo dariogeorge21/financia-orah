@@ -132,6 +132,45 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
     }
 
+    // Ensure income record exists if received > 0
+    if (received > 0) {
+      const { data: existingInc } = await supabase
+        .from('income')
+        .select('id')
+        .or(`reference_id.eq.${nextId},commitment_id.eq.${nextId}`);
+
+      if (!existingInc || existingInc.length === 0) {
+        const { data: allIncIds } = await supabase.from('income').select('id');
+        let maxIncNum = 0;
+        if (allIncIds) {
+          for (const item of allIncIds) {
+            const m = item.id.match(/^INC-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxIncNum) maxIncNum = n;
+            }
+          }
+        }
+        const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
+        const moneyType = (body.money_type === 'Cash' ? 'Cash' : 'UPI');
+        const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+
+        await supabase.from('income').insert({
+          id: incId,
+          date: incDate,
+          type: 'Personal Commitment',
+          contributor: personName,
+          mobile_number: mobileNumber || null,
+          description: `Payment against ${nextId}`,
+          amount: received,
+          money_type: moneyType,
+          notes: notes || `Auto-recorded from ${nextId}`,
+          reference_id: nextId,
+          commitment_id: nextId,
+        });
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,

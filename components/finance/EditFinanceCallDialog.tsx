@@ -44,6 +44,7 @@ export function EditFinanceCallDialog({
   const [callerName, setCallerName] = useState('');
   const [promised, setPromised] = useState('');
   const [received, setReceived] = useState('');
+  const [moneyType, setMoneyType] = useState<'Cash' | 'UPI'>('UPI');
   const [status, setStatus] = useState<CommitmentStatus>('Pending');
   const [notes, setNotes] = useState('');
 
@@ -96,6 +97,7 @@ export function EditFinanceCallDialog({
           caller_name: callerName.trim() || null,
           promised: promisedNum,
           received: receivedNum,
+          money_type: moneyType,
           status,
           notes: notes.trim() || null,
         });
@@ -114,7 +116,7 @@ export function EditFinanceCallDialog({
         <DialogHeader>
           <DialogTitle>Edit Finance Call ({call.id})</DialogTitle>
           <DialogDescription>
-            Update pledge details, caller info, or collection status via server API.
+            Update pledge details, caller info, or collection status. Any received amounts will be reflected automatically in Incomes.
           </DialogDescription>
         </DialogHeader>
 
@@ -190,6 +192,28 @@ export function EditFinanceCallDialog({
               />
             </div>
           </div>
+
+          {parseFloat(received) > 0 && (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="edit-fc-money-type">Payment Mode (for newly received funds)</Label>
+              <div className="flex gap-2">
+                {(['UPI', 'Cash'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMoneyType(m)}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                      moneyType === m
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-card border-border hover:bg-muted text-foreground'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-fc-status">Status</Label>

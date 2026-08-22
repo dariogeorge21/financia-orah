@@ -38,6 +38,7 @@ const CATEGORIES = [
   'Security',
   'Medical',
   'Miscellaneous',
+  'Other',
 ];
 
 interface EditExpenseDialogProps {
@@ -56,6 +57,7 @@ export function EditExpenseDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
+  const [otherCategory, setOtherCategory] = useState('');
 
   const [form, setForm] = useState({
     category: '',
@@ -72,18 +74,52 @@ export function EditExpenseDialog({
 
   useEffect(() => {
     if (expense) {
-      setForm({
-        category: expense.category || '',
-        description: expense.description || '',
-        amount: String(expense.amount ?? 0),
-        money_type: expense.money_type || 'Cash',
-        paid_by: expense.paid_by || '',
-        mobile_number: expense.mobile_number || '',
-        payment_source: (expense.payment_source as PaymentSource) || 'Event',
-        status: expense.status || 'Approved',
-        receipt_link: expense.receipt_link || '',
-        notes: expense.notes || '',
-      });
+      const standardCategories = [
+        'Food',
+        'Venue',
+        'Transport',
+        'Accommodation',
+        'Printing',
+        'Decoration',
+        'Equipment',
+        'Media',
+        'Marketing',
+        'Stationery',
+        'Security',
+        'Medical',
+        'Miscellaneous',
+      ];
+
+      if (expense.category && !standardCategories.includes(expense.category)) {
+        setForm({
+          category: 'Other',
+          description: expense.description || '',
+          amount: String(expense.amount ?? 0),
+          money_type: expense.money_type || 'Cash',
+          paid_by: expense.paid_by || '',
+          mobile_number: expense.mobile_number || '',
+          payment_source: (expense.payment_source as PaymentSource) || 'Event',
+          status: expense.status || 'Approved',
+          receipt_link: expense.receipt_link || '',
+          notes: expense.notes || '',
+        });
+        setOtherCategory(expense.category === 'Other' ? '' : expense.category);
+      } else {
+        setForm({
+          category: expense.category || '',
+          description: expense.description || '',
+          amount: String(expense.amount ?? 0),
+          money_type: expense.money_type || 'Cash',
+          paid_by: expense.paid_by || '',
+          mobile_number: expense.mobile_number || '',
+          payment_source: (expense.payment_source as PaymentSource) || 'Event',
+          status: expense.status || 'Approved',
+          receipt_link: expense.receipt_link || '',
+          notes: expense.notes || '',
+        });
+        setOtherCategory('');
+      }
+
       setHasReceipt(Boolean(expense.has_receipt));
       setError(null);
     }
@@ -104,7 +140,14 @@ export function EditExpenseDialog({
       return;
     }
 
-    if (!form.category || !form.money_type || !form.paid_by) {
+    const finalCategory = form.category === 'Other' ? otherCategory.trim() : form.category;
+
+    if (form.category === 'Other' && !finalCategory) {
+      setError('Please specify what the other category is.');
+      return;
+    }
+
+    if (!finalCategory || !form.money_type || !form.paid_by) {
       setError('Please fill all required fields (Category, Paid By, Money Type).');
       return;
     }
@@ -118,7 +161,7 @@ export function EditExpenseDialog({
     startTransition(async () => {
       try {
         await updateExpense(expense.id, {
-          category: form.category,
+          category: finalCategory,
           description: form.description.trim(),
           amount: amountNum,
           money_type: form.money_type,
@@ -180,6 +223,19 @@ export function EditExpenseDialog({
               </Select>
             </div>
           </div>
+
+          {form.category === 'Other' && (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="edit-exp-other-cat">Specify Other Category</Label>
+              <Input
+                id="edit-exp-other-cat"
+                placeholder="e.g. Sound Engineer, Stage Backdrop, Momento..."
+                value={otherCategory}
+                onChange={(e) => setOtherCategory(e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-exp-desc">Description</Label>

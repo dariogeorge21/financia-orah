@@ -48,6 +48,7 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'Registration' as IncomeType,
+    other_type: '',
     contributor: '',
     mobile_number: '',
     description: '',
@@ -65,7 +66,14 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
     e.preventDefault();
     setError(null);
 
-    if (!form.type || !form.money_type || !form.contributor || !form.description) {
+    const finalType = form.type === 'Other' ? form.other_type.trim() : form.type;
+
+    if (form.type === 'Other' && !finalType) {
+      setError('Please specify what the other income type is.');
+      return;
+    }
+
+    if (!finalType || !form.money_type || !form.contributor || !form.description) {
       setError('Please fill in all required fields.');
       return;
     }
@@ -80,7 +88,7 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
       try {
         await createIncome({
           date: form.date,
-          type: form.type,
+          type: finalType as IncomeType,
           contributor: form.contributor.trim(),
           mobile_number: form.mobile_number.trim() || null,
           description: form.description.trim(),
@@ -94,6 +102,7 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
         setForm({
           date: new Date().toISOString().split('T')[0],
           type: 'Registration',
+          other_type: '',
           contributor: '',
           mobile_number: '',
           description: '',
@@ -172,6 +181,19 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
               </Select>
             </div>
           </div>
+
+          {form.type === 'Other' && (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="inc-other-type">Specify Other Income Type</Label>
+              <Input
+                id="inc-other-type"
+                placeholder="e.g. Grant, Book Stall, Merchandise..."
+                value={form.other_type}
+                onChange={(e) => set('other_type', e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

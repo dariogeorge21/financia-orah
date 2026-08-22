@@ -39,6 +39,7 @@ const CATEGORIES = [
   'Security',
   'Medical',
   'Miscellaneous',
+  'Other',
 ];
 
 interface AddExpenseDialogProps {
@@ -54,6 +55,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
 
   const [form, setForm] = useState({
     category: '',
+    other_category: '',
     description: '',
     amount: '',
     money_type: 'Cash' as MoneyType,
@@ -73,7 +75,14 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
     e.preventDefault();
     setError(null);
 
-    if (!form.category || !form.money_type || !form.paid_by) {
+    const finalCategory = form.category === 'Other' ? form.other_category.trim() : form.category;
+
+    if (form.category === 'Other' && !finalCategory) {
+      setError('Please specify what the other category is.');
+      return;
+    }
+
+    if (!finalCategory || !form.money_type || !form.paid_by) {
       setError('Please fill all required fields (Category, Paid By, Money Type).');
       return;
     }
@@ -87,7 +96,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
     startTransition(async () => {
       try {
         await createExpense({
-          category: form.category,
+          category: finalCategory,
           description: form.description.trim(),
           amount: amountNum,
           money_type: form.money_type,
@@ -103,6 +112,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
         setOpen(false);
         setForm({
           category: '',
+          other_category: '',
           description: '',
           amount: '',
           money_type: 'Cash',
@@ -187,6 +197,19 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
               </Select>
             </div>
           </div>
+
+          {form.category === 'Other' && (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="exp-other-cat">Specify Other Category</Label>
+              <Input
+                id="exp-other-cat"
+                placeholder="e.g. Sound Engineer, Stage Backdrop, Momento..."
+                value={form.other_category}
+                onChange={(e) => set('other_category', e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="exp-desc">Description</Label>

@@ -51,7 +51,8 @@ export function EditIncomeDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [date, setDate] = useState('');
-  const [type, setType] = useState<IncomeType>('Registration');
+  const [type, setType] = useState<string>('Registration');
+  const [otherType, setOtherType] = useState('');
   const [contributor, setContributor] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [description, setDescription] = useState('');
@@ -63,7 +64,14 @@ export function EditIncomeDialog({
   useEffect(() => {
     if (income) {
       setDate(income.date || '');
-      setType(income.type || 'Registration');
+      const standardTypes = ['Registration', 'Donation', 'Personal Commitment', 'Finance Call', 'Church', 'Coupon', 'Sponsor'];
+      if (income.type && !standardTypes.includes(income.type)) {
+        setType('Other');
+        setOtherType(income.type === 'Other' ? '' : income.type);
+      } else {
+        setType(income.type || 'Registration');
+        setOtherType('');
+      }
       setContributor(income.contributor || '');
       setMobileNumber(income.mobile_number || '');
       setDescription(income.description || '');
@@ -86,7 +94,14 @@ export function EditIncomeDialog({
       return;
     }
 
-    if (!contributor.trim() || !description.trim()) {
+    const finalType = type === 'Other' ? otherType.trim() : type;
+
+    if (type === 'Other' && !finalType) {
+      setError('Please specify what the other income type is.');
+      return;
+    }
+
+    if (!finalType || !contributor.trim() || !description.trim()) {
       setError('Please fill all required fields.');
       return;
     }
@@ -101,7 +116,7 @@ export function EditIncomeDialog({
       try {
         await updateIncome(income.id, {
           date: date || undefined,
-          type,
+          type: finalType as IncomeType,
           contributor: contributor.trim(),
           mobile_number: mobileNumber.trim() || null,
           description: description.trim(),
@@ -143,7 +158,7 @@ export function EditIncomeDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-inc-type">Type</Label>
-              <Select value={type} onValueChange={(v) => setType((v as IncomeType) ?? 'Registration')}>
+              <Select value={type} onValueChange={(v) => setType(v ?? 'Registration')}>
                 <SelectTrigger id="edit-inc-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
@@ -157,6 +172,19 @@ export function EditIncomeDialog({
               </Select>
             </div>
           </div>
+
+          {type === 'Other' && (
+            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
+              <Label htmlFor="edit-inc-other-type">Specify Other Income Type</Label>
+              <Input
+                id="edit-inc-other-type"
+                placeholder="e.g. Grant, Book Stall, Merchandise..."
+                value={otherType}
+                onChange={(e) => setOtherType(e.target.value)}
+                required
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

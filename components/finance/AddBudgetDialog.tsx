@@ -30,7 +30,7 @@ const DEFAULT_CATEGORIES = [
   'Security',
   'Medical',
   'Miscellaneous',
-  'Custom',
+  'Other',
 ];
 
 interface AddBudgetDialogProps {
@@ -53,12 +53,17 @@ export function AddBudgetDialog({
   const [planned, setPlanned] = useState('');
   const [description, setDescription] = useState('');
 
-  const finalCategoryName =
-    categoryType === 'Custom' ? customCategory.trim() : categoryType;
+  const isOther = categoryType === 'Other' || categoryType === 'Custom';
+  const finalCategoryName = isOther ? customCategory.trim() : categoryType;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (isOther && !customCategory.trim()) {
+      setError('Please specify what the other category is.');
+      return;
+    }
 
     if (!finalCategoryName) {
       setError('Please provide a category name.');
@@ -133,6 +138,7 @@ export function AddBudgetDialog({
             <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 rounded-lg border border-border/50 bg-muted/20">
               {DEFAULT_CATEGORIES.map((cat) => {
                 const isAlreadyAdded =
+                  cat !== 'Other' &&
                   cat !== 'Custom' &&
                   existingCategories.some((c) => c.toLowerCase() === cat.toLowerCase());
 
@@ -157,9 +163,9 @@ export function AddBudgetDialog({
             </div>
           </div>
 
-          {categoryType === 'Custom' && (
+          {isOther && (
             <div className="space-y-1.5 animate-in fade-in-50 duration-200">
-              <Label htmlFor="custom-category">Custom Category Name</Label>
+              <Label htmlFor="custom-category">Specify Other Category Name</Label>
               <Input
                 id="custom-category"
                 placeholder="e.g. Guest Hospitality, Merch..."

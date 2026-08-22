@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,18 +14,41 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { createFinanceCall } from '@/features/finance-calls';
-import { formatINR } from '@/lib/calculations';
-import type { CommitmentStatus } from '@/lib/types';
+import { formatINR, calcMoneyPosition } from '@/lib/calculations';
+import type { CommitmentStatus, MoneyPosition } from '@/lib/types';
+import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 interface AddFinanceCallDialogProps {
   onSuccess?: () => void;
   trigger?: React.ReactElement;
+  moneyPosition?: MoneyPosition;
 }
 
-export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialogProps) {
+export function AddFinanceCallDialog({
+  onSuccess,
+  trigger,
+  moneyPosition,
+}: AddFinanceCallDialogProps) {
+  const { notifyTransaction } = useBalanceNotification();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(null);
+
+  useEffect(() => {
+    if (open && !moneyPosition) {
+      Promise.all([
+        fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
+        fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
+        fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+      ]).then(([incRes, expRes, reimbRes]) => {
+        const incList = incRes.data?.income ?? [];
+        const expList = expRes.data?.expenses ?? [];
+        const reimbList = reimbRes.data?.reimbursements ?? [];
+        setLivePosition(calcMoneyPosition(incList, expList, reimbList));
+      });
+    }
+  }, [open, moneyPosition]);
 
   const [paymentStatus, setPaymentStatus] = useState<'Pending' | 'Fully Received' | 'Partially Received'>('Pending');
   const [form, setForm] = useState({
@@ -92,6 +115,24 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           status: finalStatus,
           notes: form.notes.trim() || null,
         });
+
+        if (finalReceived > 0) {
+          const activePosition = moneyPosition ?? livePosition;
+          const currentCash = activePosition?.cashAvailable ?? 0;
+          const currentUpi = activePosition?.upiAvailable ?? 0;
+          const beforeAmount = form.money_type === 'Cash' ? currentCash : currentUpi;
+          const afterAmount = beforeAmount + finalReceived;
+          notifyTransaction({
+            type: 'income',
+            title: 'Finance Call Payment Logged',
+            description: `Finance Call • ${form.person_name}`,
+            moneyType: form.money_type,
+            beforeAmount,
+            deltaAmount: finalReceived,
+            afterAmount,
+            durationMs: 3000,
+          });
+        }
 
         setOpen(false);
         setPaymentStatus('Pending');

@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { createExpense } from '@/features/expenses';
 import { formatINR, calcMoneyPosition } from '@/lib/calculations';
 import type { MoneyType, PaymentSource, ExpenseStatus, MoneyPosition } from '@/lib/types';
+import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 const CATEGORIES = [
   'Food',
@@ -49,17 +50,12 @@ interface AddExpenseDialogProps {
 }
 
 export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpenseDialogProps) {
+  const { notifyTransaction } = useBalanceNotification();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
-  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(moneyPosition ?? null);
-
-  useEffect(() => {
-    if (moneyPosition) {
-      setLivePosition(moneyPosition);
-    }
-  }, [moneyPosition]);
+  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(null);
 
   useEffect(() => {
     if (open && !moneyPosition) {
@@ -94,8 +90,9 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  const currentCash = livePosition?.cashAvailable ?? 0;
-  const currentUpi = livePosition?.upiAvailable ?? 0;
+  const activePosition = moneyPosition ?? livePosition;
+  const currentCash = activePosition?.cashAvailable ?? 0;
+  const currentUpi = activePosition?.upiAvailable ?? 0;
   const beforeAmount = form.money_type === 'Cash' ? currentCash : currentUpi;
   const enteredAmount = parseFloat(form.amount) || 0;
   const afterAmount = beforeAmount - enteredAmount;
@@ -137,6 +134,17 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
           has_receipt: hasReceipt,
           receipt_link: form.receipt_link.trim() || null,
           notes: form.notes.trim() || null,
+        });
+
+        notifyTransaction({
+          type: 'expense',
+          title: 'Expense Recorded',
+          description: `${finalCategory} • ${form.description || form.paid_by}`,
+          moneyType: form.money_type,
+          beforeAmount,
+          deltaAmount: amountNum,
+          afterAmount,
+          durationMs: 3000,
         });
 
         setOpen(false);

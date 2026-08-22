@@ -60,13 +60,7 @@ export function EditExpenseDialog({
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
   const [otherCategory, setOtherCategory] = useState('');
-  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(moneyPosition ?? null);
-
-  useEffect(() => {
-    if (moneyPosition) {
-      setLivePosition(moneyPosition);
-    }
-  }, [moneyPosition]);
+  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(null);
 
   useEffect(() => {
     if (open && !moneyPosition) {
@@ -155,8 +149,9 @@ export function EditExpenseDialog({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  const currentCash = livePosition?.cashAvailable ?? 0;
-  const currentUpi = livePosition?.upiAvailable ?? 0;
+  const activePosition = moneyPosition ?? livePosition;
+  const currentCash = activePosition?.cashAvailable ?? 0;
+  const currentUpi = activePosition?.upiAvailable ?? 0;
   const wasDeducted = Boolean(
     expense &&
     expense.status === 'Approved' &&

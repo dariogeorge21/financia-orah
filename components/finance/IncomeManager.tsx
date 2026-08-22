@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
-import type { IncomeRecord, IncomeType } from '@/lib/types';
-import { formatINR } from '@/lib/calculations';
+import type { IncomeRecord, IncomeType, MoneyPosition } from '@/lib/types';
+import { formatINR, calcMoneyPosition } from '@/lib/calculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { AddIncomeDialog } from './AddIncomeDialog';
 import { EditIncomeDialog } from './EditIncomeDialog';
-import { fetchIncomeData, deleteIncome } from '@/features/income';
+import { deleteIncome } from '@/features/income';
 
 const TYPE_COLORS: Record<string, string> = {
   Registration: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -49,10 +49,12 @@ const ALL_TYPES: IncomeType[] = [
 
 interface IncomeManagerProps {
   initialIncome: IncomeRecord[];
+  initialMoneyPosition?: MoneyPosition;
 }
 
-export function IncomeManager({ initialIncome }: IncomeManagerProps) {
+export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeManagerProps) {
   const [income, setIncome] = useState<IncomeRecord[]>(initialIncome);
+  const [moneyPosition, setMoneyPosition] = useState<MoneyPosition | undefined>(initialMoneyPosition);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [moneyTypeFilter, setMoneyTypeFilter] = useState<string>('ALL');
@@ -105,9 +107,20 @@ export function IncomeManager({ initialIncome }: IncomeManagerProps) {
     setErrorMessage(null);
     startRefresh(async () => {
       try {
-        const res = await fetchIncomeData();
-        if (res.data) {
-          setIncome(res.data.income);
+        const [incRes, expRes, reimbRes] = await Promise.all([
+          fetch('/api/income').then((r) => r.json()),
+          fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
+          fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+        ]);
+
+        if (incRes.data) {
+          setIncome(incRes.data.income);
+        }
+        const incList = incRes.data?.income ?? [];
+        const expList = expRes.data?.expenses ?? [];
+        const reimbList = reimbRes.data?.reimbursements ?? [];
+        if (incList.length > 0 || expList.length > 0 || reimbList.length > 0) {
+          setMoneyPosition(calcMoneyPosition(incList, expList, reimbList));
         }
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : 'Failed to refresh income data.');
@@ -171,7 +184,7 @@ export function IncomeManager({ initialIncome }: IncomeManagerProps) {
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
 
-          <AddIncomeDialog onSuccess={handleRefresh} />
+          <AddIncomeDialog onSuccess={handleRefresh} moneyPosition={moneyPosition} />
         </div>
       </div>
 

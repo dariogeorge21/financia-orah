@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,8 +21,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { createIncome } from '@/features/income';
-import { formatINR } from '@/lib/calculations';
-import type { IncomeType, MoneyType } from '@/lib/types';
+import { formatINR, calcMoneyPosition } from '@/lib/calculations';
+import type { IncomeType, MoneyType, MoneyPosition } from '@/lib/types';
+import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 const INCOME_TYPES: IncomeType[] = [
   'Registration',
@@ -38,12 +39,30 @@ const INCOME_TYPES: IncomeType[] = [
 interface AddIncomeDialogProps {
   onSuccess?: () => void;
   trigger?: React.ReactElement;
+  moneyPosition?: MoneyPosition;
 }
 
-export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
+export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncomeDialogProps) {
+  const { notifyTransaction } = useBalanceNotification();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(null);
+
+  useEffect(() => {
+    if (open && !moneyPosition) {
+      Promise.all([
+        fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
+        fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
+        fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+      ]).then(([incRes, expRes, reimbRes]) => {
+        const incList = incRes.data?.income ?? [];
+        const expList = expRes.data?.expenses ?? [];
+        const reimbList = reimbRes.data?.reimbursements ?? [];
+        setLivePosition(calcMoneyPosition(incList, expList, reimbList));
+      });
+    }
+  }, [open, moneyPosition]);
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -61,6 +80,11 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
+
+  const activePosition = moneyPosition ?? livePosition;
+  const currentCash = activePosition?.cashAvailable ?? 0;
+  const currentUpi = activePosition?.upiAvailable ?? 0;
+  const beforeAmount = form.money_type === 'Cash' ? currentCash : currentUpi;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,6 +120,18 @@ export function AddIncomeDialog({ onSuccess, trigger }: AddIncomeDialogProps) {
           money_type: form.money_type,
           notes: form.notes.trim() || null,
           reference_id: form.reference_id.trim() || null,
+        });
+
+        const afterAmount = beforeAmount + amountNum;
+        notifyTransaction({
+          type: 'income',
+          title: 'Income Recorded',
+          description: `${finalType} • ${form.contributor}`,
+          moneyType: form.money_type,
+          beforeAmount,
+          deltaAmount: amountNum,
+          afterAmount,
+          durationMs: 3000,
         });
 
         setOpen(false);

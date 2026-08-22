@@ -1,17 +1,23 @@
 import { createClient } from '@/lib/supabase/server';
-import type { IncomeRecord } from '@/lib/types';
+import type { IncomeRecord, ExpenseRecord, ReimbursementRecord } from '@/lib/types';
+import { calcMoneyPosition } from '@/lib/calculations';
 import { IncomeManager } from '@/components/finance/IncomeManager';
 
 export const dynamic = 'force-dynamic';
 
 export default async function IncomePage() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from('income')
-    .select('*')
-    .order('date', { ascending: false });
+  const [incRes, expRes, reimbRes] = await Promise.all([
+    supabase.from('income').select('*').order('date', { ascending: false }),
+    supabase.from('expenses').select('*'),
+    supabase.from('reimbursements').select('*'),
+  ]);
 
-  const income = (data ?? []) as IncomeRecord[];
+  const income = (incRes.data ?? []) as IncomeRecord[];
+  const expenses = (expRes.data ?? []) as ExpenseRecord[];
+  const reimbursements = (reimbRes.data ?? []) as ReimbursementRecord[];
 
-  return <IncomeManager initialIncome={income} />;
+  const moneyPosition = calcMoneyPosition(income, expenses, reimbursements);
+
+  return <IncomeManager initialIncome={income} initialMoneyPosition={moneyPosition} />;
 }

@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/finance/ThemeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { BalanceNotificationProvider } from "@/components/finance/BalanceNotificationProvider";
 
 const figtree = Figtree({ subsets: ['latin'], variable: '--font-sans' });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -78,7 +79,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
-            {children}
+            <BalanceNotificationProvider>
+              {children}
+            </BalanceNotificationProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

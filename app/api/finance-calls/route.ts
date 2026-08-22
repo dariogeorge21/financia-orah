@@ -1,0 +1,147 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import type { FinanceCallRecord, CommitmentStatus } from '@/lib/types';
+
+// GET /api/finance-calls - Fetch all finance calls and computed statistics
+export async function GET() {
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('finance_calls')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    const calls = (data ?? []) as FinanceCallRecord[];
+    const active = calls.filter((c) => c.status !== 'Cancelled');
+    const totalPromised = active.reduce((s, c) => s + Number(c.promised), 0);
+    const totalReceived = active.reduce((s, c) => s + Number(c.received), 0);
+    const totalPending = Math.max(0, totalPromised - totalReceived);
+    const fulfillmentPct = totalPromised > 0 ? Math.round((totalReceived / totalPromised) * 100) : 0;
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        calls,
+        summary: {
+          totalPromised,
+          totalReceived,
+          totalPending,
+          fulfillmentPct,
+          totalCount: calls.length,
+          activeCount: active.length,
+          fullyReceivedCount: active.filter((c) => c.status === 'Fully Received').length,
+          partiallyReceivedCount: active.filter((c) => c.status === 'Partially Received').length,
+          pendingCount: active.filter((c) => c.status === 'Pending').length,
+          cancelledCount: calls.filter((c) => c.status === 'Cancelled').length,
+        },
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}
+
+// POST /api/finance-calls - Create a new finance call pledge record
+export async function POST(request: Request) {
+  try {
+    const supabase = await createClient();
+
+    // Check authentication
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const personName = typeof body.person_name === 'string' ? body.person_name.trim() : '';
+    const mobileNumber = typeof body.mobile_number === 'string' ? body.mobile_number.trim() : null;
+    const callerName = typeof body.caller_name === 'string' ? body.caller_name.trim() : null;
+    const promised = Number(body.promised);
+    const received = body.received !== undefined ? Number(body.received) : 0;
+    const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
+
+    if (!personName) {
+      return NextResponse.json(
+        { success: false, error: 'Contact / Donor name is required.' },
+        { status: 400 }
+      );
+    }
+
+    if (isNaN(promised) || promised <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Promised amount must be greater than 0.' },
+        { status: 400 }
+      );
+    }
+
+    if (isNaN(received) || received < 0) {
+      return NextResponse.json(
+        { success: false, error: 'Received amount must be 0 or greater.' },
+        { status: 400 }
+      );
+    }
+
+    // Determine initial status
+    let status: CommitmentStatus = 'Pending';
+    if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {
+      status = body.status;
+    } else if (received >= promised) {
+      status = 'Fully Received';
+    } else if (received > 0) {
+      status = 'Partially Received';
+    }
+
+    // Generate next sequential FC-XXXX id
+    const { data: allIds } = await supabase.from('finance_calls').select('id');
+
+    let maxNum = 0;
+    if (allIds) {
+      for (const item of allIds) {
+        const match = item.id.match(/^FC-(\d+)$/i);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      }
+    }
+
+    const nextId = `FC-${String(maxNum + 1).padStart(4, '0')}`;
+
+    const { data: newCall, error: insertError } = await supabase
+      .from('finance_calls')
+      .insert({
+        id: nextId,
+        person_name: personName,
+        mobile_number: mobileNumber || null,
+        caller_name: callerName || null,
+        promised,
+        received,
+        status,
+        notes: notes || null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: newCall,
+        message: 'Finance call created successfully.',
+      },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
+}

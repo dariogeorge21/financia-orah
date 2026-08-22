@@ -44,6 +44,7 @@ export interface IncomeRecord {
   description: string;
   amount: number;
   money_type: MoneyType;
+  screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;
   commitment_id?: string | null;
@@ -54,8 +55,11 @@ export interface PersonalCommitmentRecord {
   id: string;
   person_name: string;
   mobile_number?: string | null;
+  caller_name?: string | null;
   promised: number;
   received: number;
+  money_type?: MoneyType | null;
+  screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
   created_at?: string;
@@ -68,6 +72,8 @@ export interface FinanceCallRecord {
   caller_name?: string | null;
   promised: number;
   received: number;
+  money_type?: MoneyType | null;
+  screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
   created_at?: string;

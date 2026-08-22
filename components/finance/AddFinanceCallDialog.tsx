@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { createFinanceCall } from '@/features/finance-calls';
 import { formatINR } from '@/lib/calculations';
+import type { CommitmentStatus } from '@/lib/types';
 
 interface AddFinanceCallDialogProps {
   onSuccess?: () => void;
@@ -26,6 +27,7 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const [paymentStatus, setPaymentStatus] = useState<'Pending' | 'Fully Received' | 'Partially Received'>('Pending');
   const [form, setForm] = useState({
     person_name: '',
     mobile_number: '',
@@ -33,6 +35,7 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
     promised: '',
     received: '',
     money_type: 'UPI' as 'Cash' | 'UPI',
+    screenshot_link: '',
     notes: '',
   });
 
@@ -50,10 +53,26 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
       return;
     }
 
-    const receivedNum = form.received ? parseFloat(form.received) : 0;
-    if (isNaN(receivedNum) || receivedNum < 0) {
-      setError('Received amount must be 0 or greater.');
-      return;
+    let finalReceived = 0;
+    let finalStatus: CommitmentStatus = 'Pending';
+
+    if (paymentStatus === 'Fully Received') {
+      finalReceived = promisedNum;
+      finalStatus = 'Fully Received';
+    } else if (paymentStatus === 'Partially Received') {
+      finalReceived = form.received ? parseFloat(form.received) : 0;
+      if (isNaN(finalReceived) || finalReceived <= 0) {
+        setError('Please enter a valid received amount greater than 0 for partial payment.');
+        return;
+      }
+      if (finalReceived >= promisedNum) {
+        finalStatus = 'Fully Received';
+      } else {
+        finalStatus = 'Partially Received';
+      }
+    } else {
+      finalReceived = 0;
+      finalStatus = 'Pending';
     }
 
     startTransition(async () => {
@@ -63,13 +82,15 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           mobile_number: form.mobile_number.trim() || null,
           caller_name: form.caller_name.trim() || null,
           promised: promisedNum,
-          received: receivedNum,
-          money_type: form.money_type,
-          status: receivedNum >= promisedNum ? 'Fully Received' : receivedNum > 0 ? 'Partially Received' : 'Pending',
+          received: finalReceived,
+          money_type: finalReceived > 0 ? form.money_type : undefined,
+          screenshot_link: form.screenshot_link.trim() || null,
+          status: finalStatus,
           notes: form.notes.trim() || null,
         });
 
         setOpen(false);
+        setPaymentStatus('Pending');
         setForm({
           person_name: '',
           mobile_number: '',
@@ -77,6 +98,7 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           promised: '',
           received: '',
           money_type: 'UPI',
+          screenshot_link: '',
           notes: '',
         });
         onSuccess?.();
@@ -113,16 +135,16 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
           )
         }
       />
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Finance Call Entry</DialogTitle>
           <DialogDescription>
-            Record a pledge or commitment received during finance calling drives. Received funds are automatically logged to Incomes and the Dashboard.
+            Record a pledge or commitment from calling drives. Received funds are automatically logged to Incomes and the Dashboard.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="fc-person">Contact / Donor Name</Label>
+            <Label htmlFor="fc-person">Contact / Donor Name <span className="text-destructive">*</span></Label>
             <Input
               id="fc-person"
               placeholder="Name of donor / well-wisher"
@@ -154,70 +176,124 @@ export function AddFinanceCallDialog({ onSuccess, trigger }: AddFinanceCallDialo
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="fc-amount">Promised (₹)</Label>
-                {form.promised && !isNaN(parseFloat(form.promised)) && (
-                  <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
-                    {formatINR(parseFloat(form.promised))}
-                  </span>
-                )}
-              </div>
-              <Input
-                id="fc-amount"
-                type="number"
-                min="1"
-                step="1"
-                placeholder="e.g. 10000"
-                value={form.promised}
-                onChange={(e) => set('promised', e.target.value)}
-                required
-              />
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="fc-amount">Promised Amount (₹) <span className="text-destructive">*</span></Label>
+              {form.promised && !isNaN(parseFloat(form.promised)) && (
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {formatINR(parseFloat(form.promised))}
+                </span>
+              )}
             </div>
-
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="fc-received">Received Now (₹)</Label>
-                {form.received && !isNaN(parseFloat(form.received)) && (
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                    {formatINR(parseFloat(form.received))}
-                  </span>
-                )}
-              </div>
-              <Input
-                id="fc-received"
-                type="number"
-                min="0"
-                step="1"
-                placeholder="0"
-                value={form.received}
-                onChange={(e) => set('received', e.target.value)}
-              />
-            </div>
+            <Input
+              id="fc-amount"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="e.g. 10000"
+              value={form.promised}
+              onChange={(e) => set('promised', e.target.value)}
+              required
+            />
           </div>
 
-          {form.received && parseFloat(form.received) > 0 ? (
-            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
-              <Label htmlFor="fc-money-type">Payment Mode (Received Funds)</Label>
-              <div className="flex gap-2">
-                {(['UPI', 'Cash'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => set('money_type', m)}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                      form.money_type === m
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:bg-muted text-foreground'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
+          {/* Payment Received Status selection */}
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <Label className="text-xs font-medium text-foreground">
+              Is the promised amount already received?
+            </Label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: 'Pending', label: 'Not Yet' },
+                { value: 'Fully Received', label: 'Paid in Full' },
+                { value: 'Partially Received', label: 'Partially Paid' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setPaymentStatus(opt.value as typeof paymentStatus);
+                    if (opt.value === 'Fully Received' && form.promised) {
+                      set('received', form.promised);
+                    }
+                  }}
+                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                    paymentStatus === opt.value
+                      ? opt.value === 'Fully Received'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : opt.value === 'Partially Received'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : 'bg-card border-border hover:bg-muted text-foreground'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          ) : null}
+
+            {paymentStatus === 'Partially Received' && (
+              <div className="space-y-1.5 pt-2 animate-in fade-in-50 duration-200">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="fc-partial-received" className="text-xs">
+                    Amount Received Now (₹)
+                  </Label>
+                  {form.received && !isNaN(parseFloat(form.received)) && (
+                    <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formatINR(parseFloat(form.received))}
+                    </span>
+                  )}
+                </div>
+                <Input
+                  id="fc-partial-received"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="e.g. 3000"
+                  value={form.received}
+                  onChange={(e) => set('received', e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
+            {paymentStatus !== 'Pending' && (
+              <div className="space-y-3 pt-2 animate-in fade-in-50 duration-200 border-t border-border/40 mt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Payment Mode</Label>
+                  <div className="flex gap-2">
+                    {(['UPI', 'Cash'] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => set('money_type', m)}
+                        className={`flex-1 py-1 text-xs font-medium rounded-md border transition-all ${
+                          form.money_type === m
+                            ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                            : 'bg-card border-border hover:bg-muted text-foreground'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="fc-screenshot" className="text-xs">
+                    Payment Screenshot / Receipt Link (Optional)
+                  </Label>
+                  <Input
+                    id="fc-screenshot"
+                    type="url"
+                    placeholder="https://drive.google.com/... or image link"
+                    value={form.screenshot_link}
+                    onChange={(e) => set('screenshot_link', e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="fc-notes">Call Notes / Follow-up Details (Optional)</Label>

@@ -333,7 +333,20 @@ export function IncomeManager({ initialIncome }: IncomeManagerProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                    {inc.contributor}
+                    <div className="flex items-center gap-1.5">
+                      <span>{inc.contributor}</span>
+                      {inc.screenshot_link && (
+                        <a
+                          href={inc.screenshot_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                          title="View Payment Screenshot"
+                        >
+                          Receipt ↗
+                        </a>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                     {inc.mobile_number || '—'}

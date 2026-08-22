@@ -61,8 +61,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const personName = typeof body.person_name === 'string' ? body.person_name.trim() : '';
     const mobileNumber = typeof body.mobile_number === 'string' ? body.mobile_number.trim() : null;
+    const callerName = typeof body.caller_name === 'string' ? body.caller_name.trim() : null;
     const promised = Number(body.promised);
     const received = body.received !== undefined ? Number(body.received) : 0;
+    const moneyType = body.money_type === 'Cash' ? 'Cash' : body.money_type === 'UPI' ? 'UPI' : null;
+    const screenshotLink = typeof body.screenshot_link === 'string' ? body.screenshot_link.trim() : null;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
 
     if (!personName) {
@@ -120,8 +123,11 @@ export async function POST(request: Request) {
         id: nextId,
         person_name: personName,
         mobile_number: mobileNumber || null,
+        caller_name: callerName || null,
         promised,
         received,
+        money_type: moneyType,
+        screenshot_link: screenshotLink || null,
         status,
         notes: notes || null,
       })
@@ -152,7 +158,7 @@ export async function POST(request: Request) {
           }
         }
         const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
-        const moneyType = (body.money_type === 'Cash' ? 'Cash' : 'UPI');
+        const incMoneyType = moneyType || 'UPI';
         const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
 
         await supabase.from('income').insert({
@@ -163,7 +169,8 @@ export async function POST(request: Request) {
           mobile_number: mobileNumber || null,
           description: `Payment against ${nextId}`,
           amount: received,
-          money_type: moneyType,
+          money_type: incMoneyType,
+          screenshot_link: screenshotLink || null,
           notes: notes || `Auto-recorded from ${nextId}`,
           reference_id: nextId,
           commitment_id: nextId,

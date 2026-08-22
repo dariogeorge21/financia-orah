@@ -80,6 +80,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.screenshot_link !== undefined) {
+      updatePayload.screenshot_link =
+        typeof body.screenshot_link === 'string' && body.screenshot_link.trim().length > 0
+          ? body.screenshot_link.trim()
+          : null;
+    }
+
     if (body.reference_id !== undefined) {
       const ref =
         typeof body.reference_id === 'string' && body.reference_id.trim().length > 0

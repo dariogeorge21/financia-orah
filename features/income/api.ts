@@ -35,6 +35,7 @@ export interface CreateIncomeInput {
   description: string;
   amount: number;
   money_type: MoneyType;
+  screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;
 }
@@ -47,6 +48,7 @@ export interface UpdateIncomeInput {
   description?: string;
   amount?: number;
   money_type?: MoneyType;
+  screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;
 }

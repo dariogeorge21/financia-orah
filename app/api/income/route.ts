@@ -109,6 +109,8 @@ export async function POST(request: Request) {
 
     const nextId = `INC-${String(maxNum + 1).padStart(4, '0')}`;
 
+    const screenshotLink = typeof body.screenshot_link === 'string' ? body.screenshot_link.trim() : null;
+
     const { data: newIncome, error: insertError } = await supabase
       .from('income')
       .insert({
@@ -120,6 +122,7 @@ export async function POST(request: Request) {
         description,
         amount,
         money_type: moneyType,
+        screenshot_link: screenshotLink || null,
         notes: notes || null,
         reference_id: referenceId || null,
         commitment_id: referenceId || null,

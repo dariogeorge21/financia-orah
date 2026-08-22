@@ -36,9 +36,11 @@ export interface PersonalCommitmentMutationResponse {
 export interface CreatePersonalCommitmentInput {
   person_name: string;
   mobile_number?: string | null;
+  caller_name?: string | null;
   promised: number;
   received?: number;
   money_type?: 'Cash' | 'UPI';
+  screenshot_link?: string | null;
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
@@ -47,9 +49,11 @@ export interface CreatePersonalCommitmentInput {
 export interface UpdatePersonalCommitmentInput {
   person_name?: string;
   mobile_number?: string | null;
+  caller_name?: string | null;
   promised?: number;
   received?: number;
   money_type?: 'Cash' | 'UPI';
+  screenshot_link?: string | null;
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;

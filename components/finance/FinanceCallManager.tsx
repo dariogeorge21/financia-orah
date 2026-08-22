@@ -332,7 +332,20 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                       {fc.id}
                     </td>
                     <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      {fc.person_name}
+                      <div className="flex items-center gap-1.5">
+                        <span>{fc.person_name}</span>
+                        {fc.screenshot_link && (
+                          <a
+                            href={fc.screenshot_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                            title="View Payment Screenshot"
+                          >
+                            Receipt ↗
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {fc.mobile_number || '—'}
@@ -350,7 +363,14 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                       {formatINR(fc.promised)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
-                      {formatINR(fc.received)}
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatINR(fc.received)}</span>
+                        {fc.received > 0 && fc.money_type && (
+                          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                            {fc.money_type}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
                       {formatINR(pendingAmt)}

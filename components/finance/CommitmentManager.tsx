@@ -48,21 +48,22 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
   const totalPending = Math.max(0, totalPromised - totalReceived);
   const fulfillmentPct = totalPromised > 0 ? Math.round((totalReceived / totalPromised) * 100) : 0;
 
-  // Filtered list
-  const filteredCommitments = useMemo(() => {
-    return commitments.filter((c) => {
-      const q = searchQuery.toLowerCase();
-      const matchesSearch =
-        c.person_name.toLowerCase().includes(q) ||
-        c.id.toLowerCase().includes(q) ||
-        (c.mobile_number && c.mobile_number.includes(q)) ||
-        (c.notes && c.notes.toLowerCase().includes(q));
+      {/* Filtered list */}
+      const filteredCommitments = useMemo(() => {
+        return commitments.filter((c) => {
+          const q = searchQuery.toLowerCase();
+          const matchesSearch =
+            c.person_name.toLowerCase().includes(q) ||
+            c.id.toLowerCase().includes(q) ||
+            (c.mobile_number && c.mobile_number.includes(q)) ||
+            (c.caller_name && c.caller_name.toLowerCase().includes(q)) ||
+            (c.notes && c.notes.toLowerCase().includes(q));
 
-      const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+          const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
-    });
-  }, [commitments, searchQuery, statusFilter]);
+          return matchesSearch && matchesStatus;
+        });
+      }, [commitments, searchQuery, statusFilter]);
 
   // Refresh via API
   function handleRefresh() {
@@ -265,7 +266,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border/50 bg-muted/30">
-                {['ID', 'Person', 'Mobile', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
+                {['ID', 'Person', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
                   <th
                     key={h}
                     className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
@@ -289,16 +290,45 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                       {com.id}
                     </td>
                     <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      {com.person_name}
+                      <div className="flex items-center gap-1.5">
+                        <span>{com.person_name}</span>
+                        {com.screenshot_link && (
+                          <a
+                            href={com.screenshot_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                            title="View Payment Screenshot"
+                          >
+                            Receipt ↗
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {com.mobile_number || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
+                      {com.caller_name ? (
+                        <span className="inline-flex items-center rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5">
+                          {com.caller_name}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap font-semibold">
                       {formatINR(com.promised)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
-                      {formatINR(com.received)}
+                      <div className="flex items-center gap-1.5">
+                        <span>{formatINR(com.received)}</span>
+                        {com.received > 0 && com.money_type && (
+                          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                            {com.money_type}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
                       {formatINR(pendingAmt)}
@@ -361,7 +391,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
 
               {filteredCommitments.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
                     No commitments found matching your filters.
                   </td>
                 </tr>
@@ -369,7 +399,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
             </tbody>
             <tfoot>
               <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td colSpan={3} className="px-4 py-3 text-sm">
+                <td colSpan={4} className="px-4 py-3 text-sm">
                   Total ({active.length} Active)
                 </td>
                 <td className="px-4 py-3 text-sm font-bold text-foreground">

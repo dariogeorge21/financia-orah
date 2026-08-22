@@ -74,6 +74,18 @@ export async function PATCH(request: Request, context: RouteContext) {
       updatePayload.received = received;
     }
 
+    if (body.money_type !== undefined) {
+      updatePayload.money_type =
+        body.money_type === 'Cash' || body.money_type === 'UPI' ? body.money_type : null;
+    }
+
+    if (body.screenshot_link !== undefined) {
+      updatePayload.screenshot_link =
+        typeof body.screenshot_link === 'string' && body.screenshot_link.trim().length > 0
+          ? body.screenshot_link.trim()
+          : null;
+    }
+
     if (body.notes !== undefined) {
       updatePayload.notes =
         typeof body.notes === 'string' && body.notes.trim().length > 0
@@ -152,7 +164,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           }
         }
         const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
-        const moneyType = (body.money_type === 'Cash' ? 'Cash' : 'UPI');
+        const moneyType = (body.money_type === 'Cash' ? 'Cash' : updatedCall.money_type === 'Cash' ? 'Cash' : 'UPI');
         const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
 
         await supabase.from('income').insert({
@@ -164,6 +176,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           description: `Payment against ${callId}`,
           amount: diffAmt,
           money_type: moneyType,
+          screenshot_link: updatedCall.screenshot_link || null,
           notes: body.notes || `Payment update for ${callId}`,
           reference_id: callId,
           commitment_id: callId,

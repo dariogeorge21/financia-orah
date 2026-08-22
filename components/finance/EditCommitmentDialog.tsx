@@ -41,9 +41,11 @@ export function EditCommitmentDialog({
 
   const [personName, setPersonName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [callerName, setCallerName] = useState('');
   const [promised, setPromised] = useState('');
   const [received, setReceived] = useState('');
   const [moneyType, setMoneyType] = useState<'Cash' | 'UPI'>('UPI');
+  const [screenshotLink, setScreenshotLink] = useState('');
   const [status, setStatus] = useState<CommitmentStatus>('Pending');
   const [notes, setNotes] = useState('');
 
@@ -51,13 +53,44 @@ export function EditCommitmentDialog({
     if (commitment) {
       setPersonName(commitment.person_name || '');
       setMobileNumber(commitment.mobile_number || '');
-      setPromised(String(commitment.promised ?? 0));
-      setReceived(String(commitment.received ?? 0));
-      setStatus(commitment.status || 'Pending');
+      setCallerName(commitment.caller_name || '');
+      const promisedVal = String(commitment.promised ?? 0);
+      setPromised(promisedVal);
+      const currentStatus = commitment.status || 'Pending';
+      setStatus(currentStatus);
+      if (currentStatus === 'Fully Received') {
+        setReceived(promisedVal);
+      } else {
+        setReceived(String(commitment.received ?? 0));
+      }
+      setMoneyType(commitment.money_type === 'Cash' ? 'Cash' : 'UPI');
+      setScreenshotLink(commitment.screenshot_link || '');
       setNotes(commitment.notes || '');
       setError(null);
     }
   }, [commitment, open]);
+
+  // When status changes, adjust received amount automatically
+  function handleStatusChange(newStatus: CommitmentStatus) {
+    setStatus(newStatus);
+    if (newStatus === 'Fully Received') {
+      setReceived(promised);
+    } else if (newStatus === 'Pending' || newStatus === 'Cancelled') {
+      setReceived('0');
+    } else if (newStatus === 'Partially Received') {
+      if (!received || parseFloat(received) >= parseFloat(promised) || parseFloat(received) === 0) {
+        setReceived(commitment?.received && commitment.received < (commitment?.promised ?? 0) ? String(commitment.received) : '');
+      }
+    }
+  }
+
+  // When promised amount changes, if Fully Received, keep received synced
+  function handlePromisedChange(val: string) {
+    setPromised(val);
+    if (status === 'Fully Received') {
+      setReceived(val);
+    }
+  }
 
   if (!commitment) return null;
 
@@ -81,10 +114,20 @@ export function EditCommitmentDialog({
       return;
     }
 
-    const receivedNum = parseFloat(received);
-    if (isNaN(receivedNum) || receivedNum < 0) {
-      setError('Received amount must be 0 or greater.');
-      return;
+    let finalReceived = 0;
+    if (status === 'Fully Received') {
+      finalReceived = promisedNum;
+    } else if (status === 'Partially Received') {
+      finalReceived = parseFloat(received);
+      if (isNaN(finalReceived) || finalReceived <= 0) {
+        setError('Please enter a valid received amount greater than 0 for partial payment.');
+        return;
+      }
+      if (finalReceived >= promisedNum) {
+        setStatus('Fully Received');
+      }
+    } else {
+      finalReceived = 0;
     }
 
     startTransition(async () => {
@@ -92,9 +135,11 @@ export function EditCommitmentDialog({
         await updateCommitment(commitment.id, {
           person_name: personName.trim(),
           mobile_number: mobileNumber.trim() || null,
+          caller_name: callerName.trim() || null,
           promised: promisedNum,
-          received: receivedNum,
-          money_type: moneyType,
+          received: finalReceived,
+          money_type: finalReceived > 0 ? moneyType : undefined,
+          screenshot_link: screenshotLink.trim() || null,
           status,
           notes: notes.trim() || null,
         });
@@ -109,17 +154,17 @@ export function EditCommitmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Commitment ({commitment.id})</DialogTitle>
           <DialogDescription>
-            Update donor details, promised amount, received funds, or status. Any received amounts will be reflected automatically in Incomes.
+            Update donor details, promised amount, received status, or notes.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-person">Person Name</Label>
+            <Label htmlFor="edit-person">Person Name <span className="text-destructive">*</span></Label>
             <Input
               id="edit-person"
               value={personName}
@@ -128,20 +173,31 @@ export function EditCommitmentDialog({
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-mobile">Mobile Number</Label>
-            <Input
-              id="edit-mobile"
-              type="tel"
-              value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-mobile">Mobile Number</Label>
+              <Input
+                id="edit-mobile"
+                type="tel"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-caller">Caller / Volunteer</Label>
+              <Input
+                id="edit-caller"
+                placeholder="Volunteer name"
+                value={callerName}
+                onChange={(e) => setCallerName(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="edit-promised">Promised (₹)</Label>
+                <Label htmlFor="edit-promised">Promised (₹) <span className="text-destructive">*</span></Label>
                 {promised && !isNaN(parseFloat(promised)) && (
                   <span className="text-[10px] font-semibold text-muted-foreground">
                     {formatINR(parseFloat(promised))}
@@ -154,16 +210,36 @@ export function EditCommitmentDialog({
                 min="1"
                 step="1"
                 value={promised}
-                onChange={(e) => setPromised(e.target.value)}
+                onChange={(e) => handlePromisedChange(e.target.value)}
                 required
               />
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="edit-status">Status</Label>
+              <Select value={status} onValueChange={(val) => handleStatusChange(val as CommitmentStatus)}>
+                <SelectTrigger id="edit-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">Pending (Not Paid)</SelectItem>
+                  <SelectItem value="Partially Received">Partially Received</SelectItem>
+                  <SelectItem value="Fully Received">Fully Received</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Conditional Received Amount Display / Edit */}
+          {status === 'Partially Received' ? (
+            <div className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 animate-in fade-in-50 duration-200">
               <div className="flex justify-between items-center">
-                <Label htmlFor="edit-received">Received (₹)</Label>
+                <Label htmlFor="edit-received" className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                  Partially Received Amount (₹) <span className="text-destructive">*</span>
+                </Label>
                 {received && !isNaN(parseFloat(received)) && (
-                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                     {formatINR(parseFloat(received))}
                   </span>
                 )}
@@ -171,51 +247,68 @@ export function EditCommitmentDialog({
               <Input
                 id="edit-received"
                 type="number"
-                min="0"
+                min="1"
+                max={promised ? parseFloat(promised) - 1 : undefined}
                 step="1"
+                placeholder="Enter partial amount received"
                 value={received}
                 onChange={(e) => setReceived(e.target.value)}
+                className="bg-background"
                 required
               />
             </div>
-          </div>
+          ) : status === 'Fully Received' ? (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 animate-in fade-in-50 duration-200 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                  Fully Received (100% Collected)
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Promised amount is automatically marked as received in full.
+                </p>
+              </div>
+              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                {promised ? formatINR(parseFloat(promised)) : '₹0'}
+              </span>
+            </div>
+          ) : null}
 
-          {parseFloat(received) > 0 && (
-            <div className="space-y-1.5 animate-in fade-in-50 duration-200">
-              <Label htmlFor="edit-pcom-money-type">Payment Mode (for newly received funds)</Label>
-              <div className="flex gap-2">
-                {(['UPI', 'Cash'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMoneyType(m)}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${
-                      moneyType === m
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card border-border hover:bg-muted text-foreground'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
+          {(status === 'Fully Received' || status === 'Partially Received') && (
+            <div className="space-y-3 rounded-xl border border-border/50 bg-muted/20 p-3 animate-in fade-in-50 duration-200">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Payment Mode</Label>
+                <div className="flex gap-2">
+                  {(['UPI', 'Cash'] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMoneyType(m)}
+                      className={`flex-1 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                        moneyType === m
+                          ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                          : 'bg-card border-border hover:bg-muted text-foreground'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-pcom-screenshot" className="text-xs font-medium">
+                  Payment Screenshot / Receipt Link (Optional)
+                </Label>
+                <Input
+                  id="edit-pcom-screenshot"
+                  type="url"
+                  placeholder="https://drive.google.com/... or image link"
+                  value={screenshotLink}
+                  onChange={(e) => setScreenshotLink(e.target.value)}
+                />
               </div>
             </div>
           )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-status">Status</Label>
-            <Select value={status} onValueChange={(val) => setStatus(val as CommitmentStatus)}>
-              <SelectTrigger id="edit-status">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pending">Pending</SelectItem>
-                <SelectItem value="Partially Received">Partially Received</SelectItem>
-                <SelectItem value="Fully Received">Fully Received</SelectItem>
-                <SelectItem value="Cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-notes">Notes / Follow-up Details</Label>

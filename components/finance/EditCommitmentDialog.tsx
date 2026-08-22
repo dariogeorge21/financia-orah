@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { updateCommitment } from '@/features/commitments';
+import { updatePersonalCommitment as updateCommitment } from '@/features/personal-commitments';
 import type { PersonalCommitmentRecord, CommitmentStatus } from '@/lib/types';
 import { formatINR } from '@/lib/calculations';
 

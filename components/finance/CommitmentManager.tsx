@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { AddPersonalCommitmentDialog } from './AddPersonalCommitmentDialog';
 import { EditCommitmentDialog } from './EditCommitmentDialog';
-import { fetchCommitmentsData, deleteCommitment } from '@/features/commitments';
+import { fetchPersonalCommitmentsData as fetchCommitmentsData, deletePersonalCommitment as deleteCommitment } from '@/features/personal-commitments';
 
 interface CommitmentManagerProps {
   initialCommitments: PersonalCommitmentRecord[];

@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { createCommitment } from '@/features/commitments';
+import { createPersonalCommitment as createCommitment } from '@/features/personal-commitments';
 import { formatINR } from '@/lib/calculations';
 
 interface AddPersonalCommitmentDialogProps {

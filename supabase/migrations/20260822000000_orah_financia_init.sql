@@ -76,11 +76,13 @@ CREATE TABLE IF NOT EXISTS public.expenses (
   id             TEXT PRIMARY KEY,            -- EXP-XXXX
   category       TEXT NOT NULL,
   description    TEXT NOT NULL,
+  ministry       TEXT,
   amount         NUMERIC(12,2) NOT NULL CHECK (amount > 0),
   money_type     TEXT NOT NULL CHECK (money_type IN ('Cash','UPI')),
   paid_by        TEXT NOT NULL,               -- Person or entity that paid
   mobile_number  TEXT,
   payment_source TEXT NOT NULL CHECK (payment_source IN ('Personal','Event','Personal Money','Event Money')),
+  processed_by   TEXT,                      -- Person or entity that processed the expense
   has_receipt    BOOLEAN NOT NULL DEFAULT FALSE,
   receipt_link   TEXT,
   notes          TEXT,

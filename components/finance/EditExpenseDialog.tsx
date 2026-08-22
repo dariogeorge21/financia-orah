@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,9 +20,9 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { createExpense } from '@/features/expenses';
+import { updateExpense } from '@/features/expenses';
 import { formatINR } from '@/lib/calculations';
-import type { MoneyType, PaymentSource, ExpenseStatus } from '@/lib/types';
+import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus } from '@/lib/types';
 
 const CATEGORIES = [
   'Food',
@@ -41,13 +40,19 @@ const CATEGORIES = [
   'Miscellaneous',
 ];
 
-interface AddExpenseDialogProps {
+interface EditExpenseDialogProps {
+  expense: ExpenseRecord | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  trigger?: React.ReactElement;
 }
 
-export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) {
-  const [open, setOpen] = useState(false);
+export function EditExpenseDialog({
+  expense,
+  open,
+  onOpenChange,
+  onSuccess,
+}: EditExpenseDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
@@ -65,6 +70,27 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
     notes: '',
   });
 
+  useEffect(() => {
+    if (expense) {
+      setForm({
+        category: expense.category || '',
+        description: expense.description || '',
+        amount: String(expense.amount ?? 0),
+        money_type: expense.money_type || 'Cash',
+        paid_by: expense.paid_by || '',
+        mobile_number: expense.mobile_number || '',
+        payment_source: (expense.payment_source as PaymentSource) || 'Event',
+        status: expense.status || 'Approved',
+        receipt_link: expense.receipt_link || '',
+        notes: expense.notes || '',
+      });
+      setHasReceipt(Boolean(expense.has_receipt));
+      setError(null);
+    }
+  }, [expense, open]);
+
+  if (!expense) return null;
+
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -72,6 +98,11 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!expense) {
+      setError('Expense not found.');
+      return;
+    }
 
     if (!form.category || !form.money_type || !form.paid_by) {
       setError('Please fill all required fields (Category, Paid By, Money Type).');
@@ -86,7 +117,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
 
     startTransition(async () => {
       try {
-        await createExpense({
+        await updateExpense(expense.id, {
           category: form.category,
           description: form.description.trim(),
           amount: amountNum,
@@ -100,68 +131,30 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           notes: form.notes.trim() || null,
         });
 
-        setOpen(false);
-        setForm({
-          category: '',
-          description: '',
-          amount: '',
-          money_type: 'Cash',
-          paid_by: '',
-          mobile_number: '',
-          payment_source: 'Event',
-          status: 'Approved',
-          receipt_link: '',
-          notes: '',
-        });
-        setHasReceipt(false);
+        onOpenChange(false);
         onSuccess?.();
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to add expense');
+        setError(err instanceof Error ? err.message : 'Failed to update expense');
       }
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <Button
-              id="add-expense-btn"
-              className="gap-2 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white shadow-md shadow-rose-500/20"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              Add Expense
-            </Button>
-          )
-        }
-      />
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Expense</DialogTitle>
+          <DialogTitle>Edit Expense ({expense.id})</DialogTitle>
           <DialogDescription>
-            Record a new expenditure item for the event via server API.
+            Update expenditure record and status via server API.
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="exp-cat">Category</Label>
+              <Label htmlFor="edit-exp-cat">Category</Label>
               <Select value={form.category} onValueChange={(v) => set('category', v ?? '')}>
-                <SelectTrigger id="exp-cat">
+                <SelectTrigger id="edit-exp-cat">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,9 +167,9 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="exp-status">Status</Label>
+              <Label htmlFor="edit-exp-status">Status</Label>
               <Select value={form.status} onValueChange={(v) => set('status', v ?? '')}>
-                <SelectTrigger id="exp-status">
+                <SelectTrigger id="edit-exp-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -189,10 +182,9 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="exp-desc">Description</Label>
+            <Label htmlFor="edit-exp-desc">Description</Label>
             <Input
-              id="exp-desc"
-              placeholder="What was this for?"
+              id="edit-exp-desc"
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               required
@@ -201,21 +193,19 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="exp-paid-by">Paid By</Label>
+              <Label htmlFor="edit-exp-paid-by">Paid By</Label>
               <Input
-                id="exp-paid-by"
-                placeholder="Person / Treasurer"
+                id="edit-exp-paid-by"
                 value={form.paid_by}
                 onChange={(e) => set('paid_by', e.target.value)}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="exp-mobile">Mobile Number (Optional)</Label>
+              <Label htmlFor="edit-exp-mobile">Mobile Number</Label>
               <Input
-                id="exp-mobile"
+                id="edit-exp-mobile"
                 type="tel"
-                placeholder="Mobile number"
                 value={form.mobile_number}
                 onChange={(e) => set('mobile_number', e.target.value)}
               />
@@ -225,7 +215,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="exp-amount">Amount (₹)</Label>
+                <Label htmlFor="edit-exp-amount">Amount (₹)</Label>
                 {form.amount && !isNaN(parseFloat(form.amount)) && (
                   <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
                     {formatINR(parseFloat(form.amount))}
@@ -233,20 +223,19 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
                 )}
               </div>
               <Input
-                id="exp-amount"
+                id="edit-exp-amount"
                 type="number"
                 min="1"
                 step="1"
-                placeholder="0"
                 value={form.amount}
                 onChange={(e) => set('amount', e.target.value)}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="exp-money-type">Money Type</Label>
+              <Label htmlFor="edit-exp-money-type">Money Type</Label>
               <Select value={form.money_type} onValueChange={(v) => set('money_type', v ?? '')}>
-                <SelectTrigger id="exp-money-type">
+                <SelectTrigger id="edit-exp-money-type">
                   <SelectValue placeholder="Cash / UPI" />
                 </SelectTrigger>
                 <SelectContent>
@@ -258,9 +247,9 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="exp-source">Payment Source</Label>
+            <Label htmlFor="edit-exp-source">Payment Source</Label>
             <Select value={form.payment_source} onValueChange={(v) => set('payment_source', v ?? '')}>
-              <SelectTrigger id="exp-source">
+              <SelectTrigger id="edit-exp-source">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -271,15 +260,15 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           </div>
 
           <div className="flex items-center gap-3">
-            <Switch id="exp-receipt" checked={hasReceipt} onCheckedChange={setHasReceipt} />
-            <Label htmlFor="exp-receipt">Has Receipt / Invoice</Label>
+            <Switch id="edit-exp-receipt" checked={hasReceipt} onCheckedChange={setHasReceipt} />
+            <Label htmlFor="edit-exp-receipt">Has Receipt / Invoice</Label>
           </div>
 
           {hasReceipt && (
             <div className="space-y-1.5">
-              <Label htmlFor="exp-receipt-link">Receipt Image URL / Drive Link</Label>
+              <Label htmlFor="edit-exp-receipt-link">Receipt Image URL / Drive Link</Label>
               <Input
-                id="exp-receipt-link"
+                id="edit-exp-receipt-link"
                 placeholder="https://..."
                 value={form.receipt_link}
                 onChange={(e) => set('receipt_link', e.target.value)}
@@ -288,13 +277,12 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="exp-notes">Notes</Label>
+            <Label htmlFor="edit-exp-notes">Notes</Label>
             <Textarea
-              id="exp-notes"
-              placeholder="Optional notes..."
+              id="edit-exp-notes"
+              rows={2}
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
-              rows={2}
             />
           </div>
 
@@ -304,7 +292,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
               Cancel
@@ -314,7 +302,7 @@ export function AddExpenseDialog({ onSuccess, trigger }: AddExpenseDialogProps) 
               disabled={isPending}
               className="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white"
             >
-              {isPending ? 'Saving to Server…' : 'Add Expense'}
+              {isPending ? 'Updating…' : 'Save Changes'}
             </Button>
           </div>
         </form>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
 import Image from 'next/image';
 
 const navItems = [
@@ -88,12 +90,31 @@ const navItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    setNavigatingHref(null);
+  }, [pathname]);
+
+  const handleNavClick = (href: string) => {
+    const isCurrentActive = href === '/' ? pathname === '/' : pathname === href;
+    if (!isCurrentActive) {
+      setNavigatingHref(href);
+    }
+  };
 
   async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
+    try {
+      setIsLoggingOut(true);
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      router.push('/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Logout error:', error);
+      setIsLoggingOut(false);
+    }
   }
 
   return (
@@ -122,29 +143,41 @@ export function AppSidebar() {
           <SidebarMenu>
             {navItems.map((item) => {
               const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              const isNavigating = navigatingHref === item.href;
+
               return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     isActive={isActive}
                     tooltip={item.label}
+                    onClick={() => handleNavClick(item.href)}
                     className={cn(
                       'transition-all duration-200',
                       isActive
                         ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-sidebar-foreground'
+                        : 'text-sidebar-foreground',
+                      isNavigating && 'opacity-80'
                     )}
                     render={<Link href={item.href} />}
                   >
                     <span className={cn(
-                      'transition-colors',
+                      'transition-colors flex items-center justify-center',
                       isActive ? 'text-primary' : 'text-muted-foreground'
                     )}>
-                      {item.icon}
+                      {isNavigating ? (
+                        <Spinner className="size-4.5 animate-spin text-primary" />
+                      ) : (
+                        item.icon
+                      )}
                     </span>
                     <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                    {isActive && (
+                    {isNavigating ? (
+                      <span className="ml-auto group-data-[collapsible=icon]:hidden flex items-center">
+                        <Spinner className="size-3 animate-spin text-muted-foreground" />
+                      </span>
+                    ) : isActive ? (
                       <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary group-data-[collapsible=icon]:hidden" />
-                    )}
+                    ) : null}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
@@ -160,12 +193,19 @@ export function AppSidebar() {
           variant="ghost"
           size="sm"
           onClick={handleLogout}
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+          disabled={isLoggingOut}
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-70"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
-          </svg>
-          <span className="group-data-[collapsible=icon]:hidden">Sign out</span>
+          {isLoggingOut ? (
+            <Spinner className="size-4 animate-spin text-destructive" />
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" x2="9" y1="12" y2="12" />
+            </svg>
+          )}
+          <span className="group-data-[collapsible=icon]:hidden">
+            {isLoggingOut ? 'Signing out...' : 'Sign out'}
+          </span>
         </Button>
       </SidebarFooter>
     </Sidebar>

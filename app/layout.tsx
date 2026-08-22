@@ -24,6 +24,9 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("h-full antialiased", figtree.variable, geistMono.variable, "font-sans")}
     >
+      <head>
+        <meta name="apple-mobile-web-app-title" content="Finance Orah" />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"

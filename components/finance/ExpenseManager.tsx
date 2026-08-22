@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
-import type { ExpenseRecord } from '@/lib/types';
-import { formatINR, isEventExpense } from '@/lib/calculations';
+import type { ExpenseRecord, MoneyPosition } from '@/lib/types';
+import { formatINR, isEventExpense, calcMoneyPosition } from '@/lib/calculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,14 +22,16 @@ import {
 } from '@/components/ui/dialog';
 import { AddExpenseDialog } from './AddExpenseDialog';
 import { EditExpenseDialog } from './EditExpenseDialog';
-import { fetchExpensesData, deleteExpense } from '@/features/expenses';
+import { deleteExpense } from '@/features/expenses';
 
 interface ExpenseManagerProps {
   initialExpenses: ExpenseRecord[];
+  initialMoneyPosition?: MoneyPosition;
 }
 
-export function ExpenseManager({ initialExpenses }: ExpenseManagerProps) {
+export function ExpenseManager({ initialExpenses, initialMoneyPosition }: ExpenseManagerProps) {
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
+  const [moneyPosition, setMoneyPosition] = useState<MoneyPosition | undefined>(initialMoneyPosition);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
@@ -107,9 +109,20 @@ export function ExpenseManager({ initialExpenses }: ExpenseManagerProps) {
     setErrorMessage(null);
     startRefresh(async () => {
       try {
-        const res = await fetchExpensesData();
-        if (res.data) {
-          setExpenses(res.data.expenses);
+        const [expRes, incRes, reimbRes] = await Promise.all([
+          fetch('/api/expenses').then((r) => r.json()),
+          fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
+          fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+        ]);
+
+        if (expRes.data) {
+          setExpenses(expRes.data.expenses);
+        }
+        const incList = incRes.data?.income ?? [];
+        const expList = expRes.data?.expenses ?? [];
+        const reimbList = reimbRes.data?.reimbursements ?? [];
+        if (incList.length > 0 || expList.length > 0 || reimbList.length > 0) {
+          setMoneyPosition(calcMoneyPosition(incList, expList, reimbList));
         }
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : 'Failed to refresh expenses data.');
@@ -173,7 +186,7 @@ export function ExpenseManager({ initialExpenses }: ExpenseManagerProps) {
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
 
-          <AddExpenseDialog onSuccess={handleRefresh} />
+          <AddExpenseDialog onSuccess={handleRefresh} moneyPosition={moneyPosition} />
         </div>
       </div>
 
@@ -461,6 +474,7 @@ export function ExpenseManager({ initialExpenses }: ExpenseManagerProps) {
         onOpenChange={(open) => {
           if (!open) setEditingExpense(null);
         }}
+        moneyPosition={moneyPosition}
         onSuccess={handleRefresh}
       />
 

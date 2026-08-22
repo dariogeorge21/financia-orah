@@ -21,8 +21,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { updateExpense } from '@/features/expenses';
-import { formatINR } from '@/lib/calculations';
-import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus } from '@/lib/types';
+import { formatINR, calcMoneyPosition, isEventExpense } from '@/lib/calculations';
+import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus, MoneyPosition } from '@/lib/types';
 
 const CATEGORIES = [
   'Food',
@@ -46,6 +46,7 @@ interface EditExpenseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  moneyPosition?: MoneyPosition;
 }
 
 export function EditExpenseDialog({
@@ -53,11 +54,34 @@ export function EditExpenseDialog({
   open,
   onOpenChange,
   onSuccess,
+  moneyPosition,
 }: EditExpenseDialogProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
   const [otherCategory, setOtherCategory] = useState('');
+  const [livePosition, setLivePosition] = useState<MoneyPosition | null>(moneyPosition ?? null);
+
+  useEffect(() => {
+    if (moneyPosition) {
+      setLivePosition(moneyPosition);
+    }
+  }, [moneyPosition]);
+
+  useEffect(() => {
+    if (open && !moneyPosition) {
+      Promise.all([
+        fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
+        fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
+        fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+      ]).then(([incRes, expRes, reimbRes]) => {
+        const incList = incRes.data?.income ?? [];
+        const expList = expRes.data?.expenses ?? [];
+        const reimbList = reimbRes.data?.reimbursements ?? [];
+        setLivePosition(calcMoneyPosition(incList, expList, reimbList));
+      });
+    }
+  }, [open, moneyPosition]);
 
   const [form, setForm] = useState({
     category: '',
@@ -130,6 +154,20 @@ export function EditExpenseDialog({
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
+
+  const currentCash = livePosition?.cashAvailable ?? 0;
+  const currentUpi = livePosition?.upiAvailable ?? 0;
+  const wasDeducted = Boolean(
+    expense &&
+    expense.status === 'Approved' &&
+    isEventExpense(expense.payment_source) &&
+    expense.money_type === form.money_type
+  );
+  const baseBalance = form.money_type === 'Cash' ? currentCash : currentUpi;
+  const beforeAmount = baseBalance + (wasDeducted ? Number(expense?.amount ?? 0) : 0);
+  const enteredAmount = parseFloat(form.amount) || 0;
+  const afterAmount = beforeAmount - enteredAmount;
+  const isNegative = enteredAmount > 0 && afterAmount < 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -289,18 +327,53 @@ export function EditExpenseDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-exp-money-type">Money Type</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="edit-exp-money-type">Money Type</Label>
+                {livePosition && (
+                  <span className="text-[11px] text-muted-foreground font-medium">
+                    Avail: {formatINR(beforeAmount)}
+                  </span>
+                )}
+              </div>
               <Select value={form.money_type} onValueChange={(v) => set('money_type', v ?? '')}>
                 <SelectTrigger id="edit-exp-money-type">
                   <SelectValue placeholder="Cash / UPI" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="Cash">Cash ({formatINR(currentCash)})</SelectItem>
+                  <SelectItem value="UPI">UPI ({formatINR(currentUpi)})</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {/* Negative Balance Warning Banner */}
+          {isNegative && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in-50 duration-200 space-y-1.5 shadow-xs">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-amber-600 dark:text-amber-400 shrink-0"
+                >
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+                <span>Warning: Insufficient {form.money_type} Balance</span>
+              </div>
+              <p className="leading-relaxed">
+                Your current <strong className="font-semibold">{form.money_type}</strong> balance of <strong className="font-semibold text-foreground">{formatINR(beforeAmount)}</strong> will become negative: <strong className="font-bold text-rose-600 dark:text-rose-400">{formatINR(afterAmount)}</strong> after updating this expense.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-exp-source">Payment Source</Label>

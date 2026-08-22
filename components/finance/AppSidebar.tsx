@@ -17,6 +17,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
+import Image from 'next/image';
 
 const navItems = [
   {
@@ -99,9 +100,13 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/20 text-white font-bold text-lg">
-            ₹
-          </div>
+          <Image
+            src="/jyLogo.png"
+            alt="JY Logo"
+            width={40}
+            height={40}
+            className="rounded-full border border-white/20 bg-white/5 p-1 shadow-lg shadow-indigo-500/20"
+          />
           <div className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <p className="truncate text-sm font-semibold text-sidebar-foreground">Orah Financia</p>
             <p className="truncate text-xs text-muted-foreground">Campus Meet 2026</p>

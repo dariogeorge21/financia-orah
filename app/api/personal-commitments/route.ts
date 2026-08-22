@@ -89,6 +89,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (received > promised) {
+      return NextResponse.json(
+        { success: false, error: 'Received amount cannot exceed the promised amount.' },
+        { status: 400 }
+      );
+    }
+
     // Determine initial status
     let status: CommitmentStatus = 'Pending';
     if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {

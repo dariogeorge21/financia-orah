@@ -93,26 +93,36 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
-    // Determine status update
     if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {
       updatePayload.status = body.status as CommitmentStatus;
-    } else if (updatePayload.promised !== undefined || updatePayload.received !== undefined) {
+    }
+
+    if (updatePayload.promised !== undefined || updatePayload.received !== undefined) {
       const { data: current } = await supabase
         .from('personal_commitments')
         .select('promised, received, status')
         .eq('id', commitmentId)
         .single();
 
-      if (current && current.status !== 'Cancelled') {
+      if (current) {
         const promisedVal = Number(updatePayload.promised ?? current.promised);
         const receivedVal = Number(updatePayload.received ?? current.received);
 
-        if (receivedVal >= promisedVal) {
-          updatePayload.status = 'Fully Received';
-        } else if (receivedVal > 0) {
-          updatePayload.status = 'Partially Received';
-        } else {
-          updatePayload.status = 'Pending';
+        if (receivedVal > promisedVal) {
+          return NextResponse.json(
+            { success: false, error: 'Received amount cannot exceed the promised amount.' },
+            { status: 400 }
+          );
+        }
+
+        if (!body.status && current.status !== 'Cancelled') {
+          if (receivedVal >= promisedVal) {
+            updatePayload.status = 'Fully Received';
+          } else if (receivedVal > 0) {
+            updatePayload.status = 'Partially Received';
+          } else {
+            updatePayload.status = 'Pending';
+          }
         }
       }
     }

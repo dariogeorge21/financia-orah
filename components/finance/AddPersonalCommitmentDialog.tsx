@@ -68,7 +68,11 @@ export function AddPersonalCommitmentDialog({
         setError('Please enter a valid received amount greater than 0 for partial payment.');
         return;
       }
-      if (finalReceived >= promisedNum) {
+      if (finalReceived > promisedNum) {
+        setError(`Received amount (${formatINR(finalReceived)}) cannot be greater than the promised amount (${formatINR(promisedNum)}).`);
+        return;
+      }
+      if (finalReceived === promisedNum) {
         finalStatus = 'Fully Received';
       } else {
         finalStatus = 'Partially Received';
@@ -252,6 +256,7 @@ export function AddPersonalCommitmentDialog({
                   id="pcom-partial-received"
                   type="number"
                   min="1"
+                  max={form.promised ? parseFloat(form.promised) : undefined}
                   step="1"
                   placeholder="e.g. 2000"
                   value={form.received}

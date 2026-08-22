@@ -123,7 +123,11 @@ export function EditCommitmentDialog({
         setError('Please enter a valid received amount greater than 0 for partial payment.');
         return;
       }
-      if (finalReceived >= promisedNum) {
+      if (finalReceived > promisedNum) {
+        setError(`Received amount (${formatINR(finalReceived)}) cannot be greater than the promised amount (${formatINR(promisedNum)}).`);
+        return;
+      }
+      if (finalReceived === promisedNum) {
         setStatus('Fully Received');
       }
     } else {

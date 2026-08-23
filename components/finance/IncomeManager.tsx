@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import { AddIncomeDialog } from './AddIncomeDialog';
 import { EditIncomeDialog } from './EditIncomeDialog';
+import { ViewModeToggle } from './ViewModeToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { deleteIncome } from '@/features/income';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -58,6 +60,7 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('ALL');
   const [moneyTypeFilter, setMoneyTypeFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useViewMode('income');
 
   const [isRefreshing, startRefresh] = useTransition();
   const [editingIncome, setEditingIncome] = useState<IncomeRecord | null>(null);
@@ -306,132 +309,260 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
               </button>
             ))}
           </div>
+
+          {/* View Mode Toggle */}
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {['ID', 'Date', 'Type', 'Contributor', 'Mobile', 'Description', 'Amount', 'Mode', 'Ref / Notes', 'Actions'].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredIncome.map((inc) => (
-                <tr key={inc.id} className="transition-colors hover:bg-muted/20">
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                    {inc.id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                    {inc.date}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+      {/* Cards View */}
+      {viewMode === 'cards' ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredIncome.map((inc) => (
+            <div
+              key={inc.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-all hover:shadow-md flex flex-col justify-between gap-3"
+            >
+              <div>
+                {/* Card Header */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium truncate ${
                         TYPE_COLORS[inc.type] ?? 'bg-slate-100 text-slate-700'
                       }`}
                     >
                       {inc.type}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <span>{inc.contributor}</span>
-                      {inc.screenshot_link && (
-                        <a
-                          href={inc.screenshot_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
-                          title="View Payment Screenshot"
-                        >
-                          Receipt ↗
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {inc.mobile_number || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description}>
-                    {inc.description}
-                  </td>
-                  <td className="px-4 py-3 text-left font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                    {formatINR(inc.amount)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {inc.id}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <Badge
                       variant={inc.money_type === 'Cash' ? 'secondary' : 'outline'}
-                      className="text-xs"
+                      className="text-[10px] px-1.5 py-0"
                     >
                       {inc.money_type}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground max-w-[150px] truncate" title={inc.reference_id || inc.notes || ''}>
-                    {inc.reference_id || inc.commitment_id ? (
-                      <span className="font-mono text-primary font-medium">
-                        {inc.reference_id || inc.commitment_id}
-                      </span>
-                    ) : (
-                      inc.notes || '—'
+                  </div>
+                </div>
+
+                {/* Contributor & Amount */}
+                <div className="mb-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="font-semibold text-foreground text-sm leading-snug truncate" title={inc.contributor}>
+                      {inc.contributor}
+                    </h3>
+                    {inc.screenshot_link && (
+                      <a
+                        href={inc.screenshot_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono shrink-0"
+                        title="View Payment Screenshot"
+                      >
+                        Receipt ↗
+                      </a>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setEditingIncome(inc)}
+                  </div>
+
+                  <div className="flex items-baseline justify-between mt-1">
+                    <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                      +{formatINR(inc.amount)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{inc.date}</span>
+                  </div>
+
+                  {inc.description && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2" title={inc.description}>
+                      {inc.description}
+                    </p>
+                  )}
+                </div>
+
+                {/* Metadata Details */}
+                {(inc.mobile_number || inc.reference_id || inc.commitment_id || inc.notes) && (
+                  <div className="space-y-1 text-xs text-muted-foreground pt-2 border-t border-border/40">
+                    {inc.mobile_number && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]">Mobile:</span>
+                        <span className="font-mono text-[11px] text-foreground">
+                          {inc.mobile_number}
+                        </span>
+                      </div>
+                    )}
+                    {(inc.reference_id || inc.commitment_id) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px]">Ref / ID:</span>
+                        <span className="font-mono text-[11px] text-primary font-medium truncate max-w-[150px]">
+                          {inc.reference_id || inc.commitment_id}
+                        </span>
+                      </div>
+                    )}
+                    {inc.notes && (
+                      <p className="text-[11px] text-muted-foreground italic line-clamp-1 pt-0.5" title={inc.notes}>
+                        “{inc.notes}”
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Card Footer: Actions */}
+              <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/40">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setEditingIncome(inc)}
+                  className="text-xs h-7 px-2"
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setDeletingIncome(inc)}
+                  className="text-xs h-7 px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          ))}
+
+          {filteredIncome.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border/80 p-8 text-center">
+              <p className="text-sm font-medium text-foreground">No income transactions found.</p>
+              <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search query.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  {['ID', 'Date', 'Type', 'Contributor', 'Mobile', 'Description', 'Amount', 'Mode', 'Ref / Notes', 'Actions'].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredIncome.map((inc) => (
+                  <tr key={inc.id} className="transition-colors hover:bg-muted/20">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      {inc.id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                      {inc.date}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                          TYPE_COLORS[inc.type] ?? 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {inc.type}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span>{inc.contributor}</span>
+                        {inc.screenshot_link && (
+                          <a
+                            href={inc.screenshot_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                            title="View Payment Screenshot"
+                          >
+                            Receipt ↗
+                          </a>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {inc.mobile_number || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description}>
+                      {inc.description}
+                    </td>
+                    <td className="px-4 py-3 text-left font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                      {formatINR(inc.amount)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Badge
+                        variant={inc.money_type === 'Cash' ? 'secondary' : 'outline'}
                         className="text-xs"
                       >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setDeletingIncome(inc)}
-                        className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {inc.money_type}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-[150px] truncate" title={inc.reference_id || inc.notes || ''}>
+                      {inc.reference_id || inc.commitment_id ? (
+                        <span className="font-mono text-primary font-medium">
+                          {inc.reference_id || inc.commitment_id}
+                        </span>
+                      ) : (
+                        inc.notes || '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setEditingIncome(inc)}
+                          className="text-xs"
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setDeletingIncome(inc)}
+                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
 
-              {filteredIncome.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No income transactions found matching your filters.
+                {filteredIncome.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                      No income transactions found matching your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-muted/20 font-semibold">
+                  <td colSpan={6} className="px-4 py-3 text-sm text-foreground">
+                    Total Income
                   </td>
+                  <td className="px-4 py-3 text-left text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatINR(total)}
+                  </td>
+                  <td colSpan={3} />
                 </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td colSpan={6} className="px-4 py-3 text-sm text-foreground">
-                  Total Income
-                </td>
-                <td className="px-4 py-3 text-left text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatINR(total)}
-                </td>
-                <td colSpan={3} />
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Edit Dialog */}
       <EditIncomeDialog

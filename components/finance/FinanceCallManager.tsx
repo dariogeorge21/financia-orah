@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import { AddFinanceCallDialog } from './AddFinanceCallDialog';
 import { EditFinanceCallDialog } from './EditFinanceCallDialog';
+import { ViewModeToggle } from './ViewModeToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { fetchFinanceCallsData, deleteFinanceCall } from '@/features/finance-calls';
 
 interface FinanceCallManagerProps {
@@ -33,6 +35,7 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [callerFilter, setCallerFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useViewMode('finance_calls');
 
   const [isRefreshing, startRefresh] = useTransition();
   const [editingCall, setEditingCall] = useState<FinanceCallRecord | null>(null);
@@ -297,168 +300,316 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
               </button>
             ))}
           </div>
+
+          {/* View Mode Toggle */}
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {['ID', 'Contact / Donor', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredCalls.map((fc) => {
-                const pct =
-                  fc.promised > 0
-                    ? Math.min(100, Math.round((Number(fc.received) / Number(fc.promised)) * 100))
-                    : 0;
-                const pendingAmt = Math.max(0, Number(fc.promised) - Number(fc.received));
+      {/* Cards View */}
+      {viewMode === 'cards' ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredCalls.map((fc) => {
+            const pct =
+              fc.promised > 0
+                ? Math.min(100, Math.round((Number(fc.received) / Number(fc.promised)) * 100))
+                : 0;
+            const pendingAmt = Math.max(0, Number(fc.promised) - Number(fc.received));
 
-                return (
-                  <tr key={fc.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {fc.id}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <span>{fc.person_name}</span>
-                        {fc.screenshot_link && (
-                          <a
-                            href={fc.screenshot_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
-                            title="View Payment Screenshot"
-                          >
-                            Receipt ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {fc.mobile_number || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
-                      {fc.caller_name ? (
-                        <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5">
-                          {fc.caller_name}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-semibold">
-                      {formatINR(fc.promised)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
-                      <div className="flex items-center gap-1.5">
-                        <span>{formatINR(fc.received)}</span>
-                        {fc.received > 0 && fc.money_type && (
-                          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
-                            {fc.money_type}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
-                      {formatINR(pendingAmt)}
-                    </td>
-                    <td className="px-4 py-3 w-32">
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={pct}
-                          className={`h-1.5 flex-1 ${
-                            fc.status === 'Fully Received'
-                              ? '[&>div]:bg-emerald-500'
-                              : fc.status === 'Partially Received'
-                              ? '[&>div]:bg-amber-500'
-                              : '[&>div]:bg-rose-500'
-                          }`}
-                        />
-                        <span className="text-xs text-muted-foreground w-8 text-right font-medium">
-                          {pct}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+            return (
+              <div
+                key={fc.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-all hover:shadow-md flex flex-col justify-between gap-3"
+              >
+                <div>
+                  {/* Header: Status + Caller */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusVariant(
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium truncate ${statusVariant(
                           fc.status
                         )}`}
                       >
                         {fc.status}
                       </span>
-                    </td>
-                    <td
-                      className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
-                      title={fc.notes || ''}
-                    >
-                      {fc.notes || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setEditingCall(fc)}
-                          className="text-xs"
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {fc.id}
+                      </span>
+                    </div>
+
+                    {fc.caller_name && (
+                      <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-[11px] font-medium shrink-0">
+                        {fc.caller_name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Person Name & Receipt */}
+                  <div className="mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold text-foreground text-sm leading-snug truncate" title={fc.person_name}>
+                        {fc.person_name}
+                      </h3>
+                      {fc.screenshot_link && (
+                        <a
+                          href={fc.screenshot_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono shrink-0"
+                          title="View Payment Screenshot"
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDeletingCall(fc)}
-                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </Button>
+                          Receipt ↗
+                        </a>
+                      )}
+                    </div>
+
+                    {fc.mobile_number && (
+                      <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                        {fc.mobile_number}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Financial Breakdown */}
+                  <div className="rounded-xl bg-muted/30 p-2.5 space-y-2 mb-3">
+                    <div className="grid grid-cols-3 gap-1 text-center">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Promised</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {formatINR(fc.promised)}
+                        </span>
                       </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Received</span>
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          {formatINR(fc.received)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Pending</span>
+                        <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          {formatINR(pendingAmt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Mini Progress */}
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                        <span>Fulfillment</span>
+                        <span className="font-medium text-foreground">{pct}%</span>
+                      </div>
+                      <Progress
+                        value={pct}
+                        className={`h-1.5 ${
+                          fc.status === 'Fully Received'
+                            ? '[&>div]:bg-emerald-500'
+                            : fc.status === 'Partially Received'
+                            ? '[&>div]:bg-amber-500'
+                            : '[&>div]:bg-rose-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {fc.notes && (
+                    <p className="text-[11px] text-muted-foreground italic line-clamp-2" title={fc.notes}>
+                      “{fc.notes}”
+                    </p>
+                  )}
+                </div>
+
+                {/* Card Footer: Actions */}
+                <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/40">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setEditingCall(fc)}
+                    className="text-xs h-7 px-2"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setDeletingCall(fc)}
+                    className="text-xs h-7 px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredCalls.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border/80 p-8 text-center">
+              <p className="text-sm font-medium text-foreground">No finance call records found.</p>
+              <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search query.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  {['ID', 'Contact / Donor', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredCalls.map((fc) => {
+                  const pct =
+                    fc.promised > 0
+                      ? Math.min(100, Math.round((Number(fc.received) / Number(fc.promised)) * 100))
+                      : 0;
+                  const pendingAmt = Math.max(0, Number(fc.promised) - Number(fc.received));
+
+                  return (
+                    <tr key={fc.id} className="transition-colors hover:bg-muted/20">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {fc.id}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{fc.person_name}</span>
+                          {fc.screenshot_link && (
+                            <a
+                              href={fc.screenshot_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                              title="View Payment Screenshot"
+                            >
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {fc.mobile_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
+                        {fc.caller_name ? (
+                          <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5">
+                            {fc.caller_name}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-semibold">
+                        {formatINR(fc.promised)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <div className="flex items-center gap-1.5">
+                          <span>{formatINR(fc.received)}</span>
+                          {fc.received > 0 && fc.money_type && (
+                            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                              {fc.money_type}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
+                        {formatINR(pendingAmt)}
+                      </td>
+                      <td className="px-4 py-3 w-32">
+                        <div className="flex items-center gap-2">
+                          <Progress
+                            value={pct}
+                            className={`h-1.5 flex-1 ${
+                              fc.status === 'Fully Received'
+                                ? '[&>div]:bg-emerald-500'
+                                : fc.status === 'Partially Received'
+                                ? '[&>div]:bg-amber-500'
+                                : '[&>div]:bg-rose-500'
+                            }`}
+                          />
+                          <span className="text-xs text-muted-foreground w-8 text-right font-medium">
+                            {pct}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusVariant(
+                            fc.status
+                          )}`}
+                        >
+                          {fc.status}
+                        </span>
+                      </td>
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
+                        title={fc.notes || ''}
+                      >
+                        {fc.notes || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setEditingCall(fc)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setDeletingCall(fc)}
+                            className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredCalls.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                      No finance call records found matching your filters.
                     </td>
                   </tr>
-                );
-              })}
-
-              {filteredCalls.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No finance call records found matching your filters.
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-muted/20 font-semibold">
+                  <td colSpan={4} className="px-4 py-3 text-sm">
+                    Total ({active.length} Active Pledges)
                   </td>
+                  <td className="px-4 py-3 text-sm font-bold text-foreground">
+                    {formatINR(totalPromised)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatINR(totalReceived)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
+                    {formatINR(totalPending)}
+                  </td>
+                  <td colSpan={4} />
                 </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td colSpan={4} className="px-4 py-3 text-sm">
-                  Total ({active.length} Active Pledges)
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-foreground">
-                  {formatINR(totalPromised)}
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatINR(totalReceived)}
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-                  {formatINR(totalPending)}
-                </td>
-                <td colSpan={4} />
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Edit Dialog */}
       <EditFinanceCallDialog

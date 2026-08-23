@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { AddReimbursementDialog } from './AddReimbursementDialog';
 import { EditReimbursementDialog } from './EditReimbursementDialog';
+import { ViewModeToggle } from './ViewModeToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import {
   fetchReimbursementsData,
   updateReimbursement,
@@ -38,6 +40,7 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [modeFilter, setModeFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useViewMode('reimbursements');
 
   const [isRefreshing, startRefresh] = useTransition();
   const [editingReimbursement, setEditingReimbursement] = useState<ReimbursementRecord | null>(
@@ -320,52 +323,27 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
               </button>
             ))}
           </div>
+
+          {/* View Mode Toggle */}
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {['ID', 'Date', 'Person', 'Mobile', 'Expense ID', 'Amount', 'Status', 'Paid Via', 'Notes', 'Actions'].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredReimbursements.map((r) => (
-                <tr key={r.id} className="transition-colors hover:bg-muted/20">
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                    {r.id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                    {r.date}
-                  </td>
-                  <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                    {r.person}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                    {r.mobile_number || '—'}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
-                    {r.expense_id}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-semibold text-foreground">
-                    {formatINR(r.amount)}
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+      {/* Cards View */}
+      {viewMode === 'cards' ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredReimbursements.map((r) => (
+            <div
+              key={r.id}
+              className="rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-all hover:shadow-md flex flex-col justify-between gap-3"
+            >
+              <div>
+                {/* Header: Status + Expense ID */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <Badge
                       variant={r.status === 'Paid' ? 'default' : 'outline'}
-                      className={`text-xs ${
+                      className={`text-[11px] ${
                         r.status === 'Paid'
                           ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
                           : 'text-amber-600 border-amber-500/30 dark:text-amber-400'
@@ -373,77 +351,221 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
                     >
                       {r.status}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {r.money_type_paid ? (
-                      <Badge variant="secondary" className="text-xs">
-                        {r.money_type_paid}
+                    <span className="font-mono text-[11px] text-primary font-semibold truncate">
+                      {r.expense_id}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{r.date}</span>
+                </div>
+
+                {/* Person & Amount */}
+                <div className="mb-2.5">
+                  <h3 className="font-semibold text-foreground text-sm leading-snug truncate" title={r.person}>
+                    {r.person}
+                  </h3>
+
+                  <div className="flex items-baseline justify-between mt-1">
+                    <span className="text-lg font-bold text-foreground">
+                      {formatINR(r.amount)}
+                    </span>
+                    {r.money_type_paid && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        Paid via {r.money_type_paid}
                       </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">—</span>
                     )}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
-                    title={r.notes || ''}
+                  </div>
+                </div>
+
+                {/* Metadata Details */}
+                <div className="space-y-1 text-xs text-muted-foreground pt-2 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px]">Claim ID:</span>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {r.id}
+                    </span>
+                  </div>
+                  {r.mobile_number && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px]">Mobile:</span>
+                      <span className="font-mono text-[11px] text-foreground">
+                        {r.mobile_number}
+                      </span>
+                    </div>
+                  )}
+                  {r.notes && (
+                    <p className="text-[11px] text-muted-foreground italic line-clamp-2 pt-0.5" title={r.notes}>
+                      “{r.notes}”
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Card Footer: Actions */}
+              <div className="flex items-center justify-between gap-1 pt-2 border-t border-border/40">
+                <div>
+                  {r.status === 'Pending' && (
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      onClick={() => setSettlingReimbursement(r)}
+                      className="text-xs h-7 px-2.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    >
+                      Settle Claim
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setEditingReimbursement(r)}
+                    className="text-xs h-7 px-2"
                   >
-                    {r.notes || '—'}
-                  </td>
-                  <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
-                      {r.status === 'Pending' && (
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setDeletingReimbursement(r)}
+                    className="text-xs h-7 px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {filteredReimbursements.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border/80 p-8 text-center">
+              <p className="text-sm font-medium text-foreground">No reimbursement records found.</p>
+              <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search query.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  {['ID', 'Date', 'Person', 'Mobile', 'Expense ID', 'Amount', 'Status', 'Paid Via', 'Notes', 'Actions'].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
+                      >
+                        {h}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredReimbursements.map((r) => (
+                  <tr key={r.id} className="transition-colors hover:bg-muted/20">
+                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      {r.id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                      {r.date}
+                    </td>
+                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                      {r.person}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                      {r.mobile_number || '—'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
+                      {r.expense_id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap font-semibold text-foreground">
+                      {formatINR(r.amount)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <Badge
+                        variant={r.status === 'Paid' ? 'default' : 'outline'}
+                        className={`text-xs ${
+                          r.status === 'Paid'
+                            ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                            : 'text-amber-600 border-amber-500/30 dark:text-amber-400'
+                        }`}
+                      >
+                        {r.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {r.money_type_paid ? (
+                        <Badge variant="secondary" className="text-xs">
+                          {r.money_type_paid}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
+                      title={r.notes || ''}
+                    >
+                      {r.notes || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-1">
+                        {r.status === 'Pending' && (
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setSettlingReimbursement(r)}
+                            className="text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                          >
+                            Settle
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="xs"
-                          onClick={() => setSettlingReimbursement(r)}
-                          className="text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                          onClick={() => setEditingReimbursement(r)}
+                          className="text-xs"
                         >
-                          Settle
+                          Edit
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setEditingReimbursement(r)}
-                        className="text-xs"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => setDeletingReimbursement(r)}
-                        className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => setDeletingReimbursement(r)}
+                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
 
-              {filteredReimbursements.length === 0 && (
-                <tr>
-                  <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No reimbursement records found matching your filters.
+                {filteredReimbursements.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                      No reimbursement records found matching your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-muted/20 font-semibold">
+                  <td colSpan={5} className="px-4 py-3 text-sm text-foreground">
+                    Pending Settlement Total
                   </td>
+                  <td className="px-4 py-3 text-sm font-bold text-amber-600 dark:text-amber-400">
+                    {formatINR(pendingTotal)}
+                  </td>
+                  <td colSpan={4} />
                 </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td colSpan={5} className="px-4 py-3 text-sm text-foreground">
-                  Pending Settlement Total
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-amber-600 dark:text-amber-400">
-                  {formatINR(pendingTotal)}
-                </td>
-                <td colSpan={4} />
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Edit Dialog */}
       <EditReimbursementDialog

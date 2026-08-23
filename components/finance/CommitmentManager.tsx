@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { AddPersonalCommitmentDialog } from './AddPersonalCommitmentDialog';
 import { EditCommitmentDialog } from './EditCommitmentDialog';
+import { ViewModeToggle } from './ViewModeToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { fetchPersonalCommitmentsData as fetchCommitmentsData, deletePersonalCommitment as deleteCommitment } from '@/features/personal-commitments';
 
 interface CommitmentManagerProps {
@@ -25,6 +27,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
   const [commitments, setCommitments] = useState<PersonalCommitmentRecord[]>(initialCommitments);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useViewMode('commitments');
 
   const [isRefreshing, startRefresh] = useTransition();
   const [editingCommitment, setEditingCommitment] = useState<PersonalCommitmentRecord | null>(null);
@@ -242,181 +245,331 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
           )}
         </div>
 
-        {/* Status Filter Buttons */}
-        <div className="flex flex-wrap items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
-          {['ALL', 'Pending', 'Partially Received', 'Fully Received', 'Cancelled'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`rounded-md px-2.5 py-1 font-medium transition-all ${
-                statusFilter === st
-                  ? 'bg-card text-foreground shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {st === 'ALL' ? 'All' : st}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status Filter Buttons */}
+          <div className="flex flex-wrap items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
+            {['ALL', 'Pending', 'Partially Received', 'Fully Received', 'Cancelled'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`rounded-md px-2.5 py-1 font-medium transition-all ${
+                  statusFilter === st
+                    ? 'bg-card text-foreground shadow-xs'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {st === 'ALL' ? 'All' : st}
+              </button>
+            ))}
+          </div>
+
+          {/* View Mode Toggle */}
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border/50 bg-muted/30">
-                {['ID', 'Person', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
-                  <th
-                    key={h}
-                    className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {filteredCommitments.map((com) => {
-                const pct =
-                  com.promised > 0
-                    ? Math.min(100, Math.round((Number(com.received) / Number(com.promised)) * 100))
-                    : 0;
-                const pendingAmt = Math.max(0, Number(com.promised) - Number(com.received));
+      {/* Cards View */}
+      {viewMode === 'cards' ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredCommitments.map((com) => {
+            const pct =
+              com.promised > 0
+                ? Math.min(100, Math.round((Number(com.received) / Number(com.promised)) * 100))
+                : 0;
+            const pendingAmt = Math.max(0, Number(com.promised) - Number(com.received));
 
-                return (
-                  <tr key={com.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {com.id}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <span>{com.person_name}</span>
-                        {com.screenshot_link && (
-                          <a
-                            href={com.screenshot_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
-                            title="View Payment Screenshot"
-                          >
-                            Receipt ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {com.mobile_number || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
-                      {com.caller_name ? (
-                        <span className="inline-flex items-center rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5">
-                          {com.caller_name}
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-semibold">
-                      {formatINR(com.promised)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
-                      <div className="flex items-center gap-1.5">
-                        <span>{formatINR(com.received)}</span>
-                        {com.received > 0 && com.money_type && (
-                          <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
-                            {com.money_type}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
-                      {formatINR(pendingAmt)}
-                    </td>
-                    <td className="px-4 py-3 w-32">
-                      <div className="flex items-center gap-2">
-                        <Progress
-                          value={pct}
-                          className={`h-1.5 flex-1 ${
-                            com.status === 'Fully Received'
-                              ? '[&>div]:bg-emerald-500'
-                              : com.status === 'Partially Received'
-                              ? '[&>div]:bg-amber-500'
-                              : '[&>div]:bg-rose-500'
-                          }`}
-                        />
-                        <span className="text-xs text-muted-foreground w-8 text-right font-medium">
-                          {pct}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+            return (
+              <div
+                key={com.id}
+                className="rounded-2xl border border-border/50 bg-card p-4 shadow-xs transition-all hover:shadow-md flex flex-col justify-between gap-3"
+              >
+                <div>
+                  {/* Header: Status + Caller */}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusVariant(
+                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium truncate ${statusVariant(
                           com.status
                         )}`}
                       >
                         {com.status}
                       </span>
-                    </td>
-                    <td
-                      className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
-                      title={com.notes || ''}
-                    >
-                      {com.notes || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setEditingCommitment(com)}
-                          className="text-xs"
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {com.id}
+                      </span>
+                    </div>
+
+                    {com.caller_name && (
+                      <span className="inline-flex items-center rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[11px] font-medium shrink-0">
+                        {com.caller_name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Person Name & Receipt */}
+                  <div className="mb-3">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold text-foreground text-sm leading-snug truncate" title={com.person_name}>
+                        {com.person_name}
+                      </h3>
+                      {com.screenshot_link && (
+                        <a
+                          href={com.screenshot_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono shrink-0"
+                          title="View Payment Screenshot"
                         >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDeletingCommitment(com)}
-                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </Button>
+                          Receipt ↗
+                        </a>
+                      )}
+                    </div>
+
+                    {com.mobile_number && (
+                      <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                        {com.mobile_number}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Financial Breakdown */}
+                  <div className="rounded-xl bg-muted/30 p-2.5 space-y-2 mb-3">
+                    <div className="grid grid-cols-3 gap-1 text-center">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Promised</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {formatINR(com.promised)}
+                        </span>
                       </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Received</span>
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          {formatINR(com.received)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Pending</span>
+                        <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                          {formatINR(pendingAmt)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Mini Progress */}
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+                        <span>Fulfillment</span>
+                        <span className="font-medium text-foreground">{pct}%</span>
+                      </div>
+                      <Progress
+                        value={pct}
+                        className={`h-1.5 ${
+                          com.status === 'Fully Received'
+                            ? '[&>div]:bg-emerald-500'
+                            : com.status === 'Partially Received'
+                            ? '[&>div]:bg-amber-500'
+                            : '[&>div]:bg-rose-500'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  {com.notes && (
+                    <p className="text-[11px] text-muted-foreground italic line-clamp-2" title={com.notes}>
+                      “{com.notes}”
+                    </p>
+                  )}
+                </div>
+
+                {/* Card Footer: Actions */}
+                <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/40">
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setEditingCommitment(com)}
+                    className="text-xs h-7 px-2"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setDeletingCommitment(com)}
+                    className="text-xs h-7 px-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filteredCommitments.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-dashed border-border/80 p-8 text-center">
+              <p className="text-sm font-medium text-foreground">No commitments found.</p>
+              <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search query.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="rounded-2xl border border-border/50 bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50 bg-muted/30">
+                  {['ID', 'Person', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40">
+                {filteredCommitments.map((com) => {
+                  const pct =
+                    com.promised > 0
+                      ? Math.min(100, Math.round((Number(com.received) / Number(com.promised)) * 100))
+                      : 0;
+                  const pendingAmt = Math.max(0, Number(com.promised) - Number(com.received));
+
+                  return (
+                    <tr key={com.id} className="transition-colors hover:bg-muted/20">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {com.id}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{com.person_name}</span>
+                          {com.screenshot_link && (
+                            <a
+                              href={com.screenshot_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                              title="View Payment Screenshot"
+                            >
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {com.mobile_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
+                        {com.caller_name ? (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-2 py-0.5">
+                            {com.caller_name}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-semibold">
+                        {formatINR(com.promised)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
+                        <div className="flex items-center gap-1.5">
+                          <span>{formatINR(com.received)}</span>
+                          {com.received > 0 && com.money_type && (
+                            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                              {com.money_type}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-rose-600 dark:text-rose-400">
+                        {formatINR(pendingAmt)}
+                      </td>
+                      <td className="px-4 py-3 w-32">
+                        <div className="flex items-center gap-2">
+                          <Progress
+                            value={pct}
+                            className={`h-1.5 flex-1 ${
+                              com.status === 'Fully Received'
+                                ? '[&>div]:bg-emerald-500'
+                                : com.status === 'Partially Received'
+                                ? '[&>div]:bg-amber-500'
+                                : '[&>div]:bg-rose-500'
+                            }`}
+                          />
+                          <span className="text-xs text-muted-foreground w-8 text-right font-medium">
+                            {pct}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${statusVariant(
+                            com.status
+                          )}`}
+                        >
+                          {com.status}
+                        </span>
+                      </td>
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
+                        title={com.notes || ''}
+                      >
+                        {com.notes || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setEditingCommitment(com)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setDeletingCommitment(com)}
+                            className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredCommitments.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                      No commitments found matching your filters.
                     </td>
                   </tr>
-                );
-              })}
-
-              {filteredCommitments.length === 0 && (
-                <tr>
-                  <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No commitments found matching your filters.
+                )}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-muted/20 font-semibold">
+                  <td colSpan={4} className="px-4 py-3 text-sm">
+                    Total ({active.length} Active)
                   </td>
+                  <td className="px-4 py-3 text-sm font-bold text-foreground">
+                    {formatINR(totalPromised)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                    {formatINR(totalReceived)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
+                    {formatINR(totalPending)}
+                  </td>
+                  <td colSpan={4} />
                 </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-border bg-muted/20 font-semibold">
-                <td colSpan={4} className="px-4 py-3 text-sm">
-                  Total ({active.length} Active)
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-foreground">
-                  {formatINR(totalPromised)}
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatINR(totalReceived)}
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-                  {formatINR(totalPending)}
-                </td>
-                <td colSpan={4} />
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Edit Dialog */}
       <EditCommitmentDialog

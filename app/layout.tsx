@@ -11,7 +11,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "Orah Financia · Campus Meet 2026",
-  description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+  description: "Financial management dashboard for Orah – Campus Meet 2026 event by Jesus Youth Pala.",
   applicationName: "Orah Financia",
   keywords: [
     "Orah",
@@ -34,13 +34,13 @@ export const metadata: Metadata = {
     locale: "en_IN",
     url: "https://financia.orah.in",
     title: "Orah Financia · Campus Meet 2026",
-    description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+    description: "Financial management dashboard for Orah – Campus Meet 2026 event by Jesus Youth Pala.",
     siteName: "Orah Financia",
   },
   twitter: {
     card: "summary_large_image",
     title: "Orah Financia · Campus Meet 2026",
-    description: "Financial management dashboard for Orah – Campus Meet 2026 event by JY Pala Missionaries.",
+    description: "Financial management dashboard for Orah – Campus Meet 2026 event by Jesus Youth Pala.",
   },
   manifest: "/manifest.json",
   icons: {

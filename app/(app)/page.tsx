@@ -4,6 +4,8 @@ import {
   calcIncomeSummary,
   calcPersonalCommitmentSummary,
   calcFinanceCallSummary,
+  calcChurchSummary,
+  calcCouponSummary,
   calcBudgetRows,
   formatINR,
   incomeByType,
@@ -17,6 +19,8 @@ import type {
   ExpenseRecord,
   PersonalCommitmentRecord,
   FinanceCallRecord,
+  ChurchDonationRecord,
+  CouponRecord,
   ReimbursementRecord,
   BudgetCategory,
 } from '@/lib/types';
@@ -25,13 +29,15 @@ import Link from 'next/link';
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [incRes, expRes, pComRes, fcRes, reimRes, budRes] = await Promise.all([
+  const [incRes, expRes, pComRes, fcRes, reimRes, budRes, churchRes, couponRes] = await Promise.all([
     supabase.from('income').select('*').order('date', { ascending: false }),
     supabase.from('expenses').select('*').order('created_at', { ascending: false }),
     supabase.from('personal_commitments').select('*').order('created_at', { ascending: false }),
     supabase.from('finance_calls').select('*').order('created_at', { ascending: false }),
     supabase.from('reimbursements').select('*').order('date', { ascending: false }),
     supabase.from('budget').select('*').order('category'),
+    supabase.from('church_donations').select('*').order('created_at', { ascending: false }),
+    supabase.from('coupons').select('*').order('created_at', { ascending: false }),
   ]);
 
   const income = (incRes.data ?? []) as IncomeRecord[];
@@ -40,11 +46,15 @@ export default async function DashboardPage() {
   const financeCalls = (fcRes.data ?? []) as FinanceCallRecord[];
   const reimbursements = (reimRes.data ?? []) as ReimbursementRecord[];
   const budgets = (budRes.data ?? []) as BudgetCategory[];
+  const churchDonations = (churchRes.data ?? []) as ChurchDonationRecord[];
+  const coupons = (couponRes.data ?? []) as CouponRecord[];
 
   const money = calcMoneyPosition(income, expenses, reimbursements);
   const incomeSummary = calcIncomeSummary(income, personalCommitments, financeCalls);
   const pComSummary = calcPersonalCommitmentSummary(personalCommitments);
   const fcSummary = calcFinanceCallSummary(financeCalls);
+  const churchSummary = calcChurchSummary(churchDonations);
+  const couponSummary = calcCouponSummary(coupons);
   const budgetRows = calcBudgetRows(budgets, expenses);
 
   const incomeChart = incomeByType(income);
@@ -223,6 +233,77 @@ export default async function DashboardPage() {
             <div className="rounded-xl bg-rose-500/10 p-3">
               <p className="text-xs text-rose-600 dark:text-rose-400">Pending</p>
               <p className="text-base font-bold text-rose-600 dark:text-rose-400">{formatINR(fcSummary.totalPending)}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Two-Column Breakdown: Church & Convents and Coupons */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        {/* Church & Convents Box */}
+        <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-foreground">Church & Convents</h3>
+              <p className="text-xs text-muted-foreground">Parish, church & convent collections</p>
+            </div>
+            <Link href="/church-donations" className="text-xs font-medium text-primary hover:underline">
+              View all ({churchDonations.length}) →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            <div className="rounded-xl bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Total Collected</p>
+              <p className="text-base font-bold text-foreground">{formatINR(churchSummary.totalAmount)}</p>
+            </div>
+            <div className="rounded-xl bg-indigo-500/10 p-3">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400">UPI Received</p>
+              <p className="text-base font-bold text-indigo-600 dark:text-indigo-400">{formatINR(churchSummary.upiAmount)}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-500/10 p-3">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">Cash Received</p>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                {formatINR(churchSummary.cashHandedOver)}
+                {churchSummary.cashPending > 0 && (
+                  <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                    +{formatINR(churchSummary.cashPending)} pending
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Coupons Box */}
+        <div className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-foreground">Coupons</h3>
+              <p className="text-xs text-muted-foreground">Coupon booklet & stall sales</p>
+            </div>
+            <Link href="/coupons" className="text-xs font-medium text-primary hover:underline">
+              View all ({coupons.length}) →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3 pt-1">
+            <div className="rounded-xl bg-muted/40 p-3">
+              <p className="text-xs text-muted-foreground">Total Collected</p>
+              <p className="text-base font-bold text-foreground">{formatINR(couponSummary.totalAmount)}</p>
+            </div>
+            <div className="rounded-xl bg-indigo-500/10 p-3">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400">UPI Received</p>
+              <p className="text-base font-bold text-indigo-600 dark:text-indigo-400">{formatINR(couponSummary.upiAmount)}</p>
+            </div>
+            <div className="rounded-xl bg-emerald-500/10 p-3">
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">Cash Received</p>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                {formatINR(couponSummary.cashHandedOver)}
+                {couponSummary.cashPending > 0 && (
+                  <span className="block text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                    +{formatINR(couponSummary.cashPending)} pending
+                  </span>
+                )}
+              </p>
             </div>
           </div>
         </div>

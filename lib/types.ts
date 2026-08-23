@@ -198,6 +198,22 @@ export interface AdvanceSummary {
   settledCount: number;
 }
 
+export interface ChurchSummary {
+  totalAmount: number;
+  upiAmount: number;
+  cashHandedOver: number;
+  cashPending: number;
+  count: number;
+}
+
+export interface CouponSummary {
+  totalAmount: number;
+  upiAmount: number;
+  cashHandedOver: number;
+  cashPending: number;
+  count: number;
+}
+
 export interface BudgetRow extends BudgetCategory {
   actual: number;
   remaining: number;

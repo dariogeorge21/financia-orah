@@ -7,12 +7,16 @@ import type {
   ReimbursementRecord,
   PersonalCommitmentRecord,
   FinanceCallRecord,
+  ChurchDonationRecord,
+  CouponRecord,
   BudgetCategory,
   MoneyPosition,
   IncomeSummary,
   CommitmentSummary,
   FinanceCallSummary,
   AdvanceSummary,
+  ChurchSummary,
+  CouponSummary,
   BudgetRow,
 } from './types';
 
@@ -220,6 +224,48 @@ export function calcFinanceCallSummary(calls: FinanceCallRecord[]): FinanceCallS
     totalPending: Math.max(0, totalPromised - totalReceived),
     fullyReceivedCount,
     pendingCount,
+  };
+}
+
+export function calcChurchSummary(donations: ChurchDonationRecord[]): ChurchSummary {
+  const totalAmount = donations.reduce((s, d) => s + Number(d.amount), 0);
+  const upiAmount = donations
+    .filter((d) => d.money_type === 'UPI')
+    .reduce((s, d) => s + Number(d.amount), 0);
+  const cashHandedOver = donations
+    .filter((d) => d.money_type === 'Cash' && d.is_handed_over !== false)
+    .reduce((s, d) => s + Number(d.amount), 0);
+  const cashPending = donations
+    .filter((d) => d.money_type === 'Cash' && d.is_handed_over === false)
+    .reduce((s, d) => s + Number(d.amount), 0);
+
+  return {
+    totalAmount,
+    upiAmount,
+    cashHandedOver,
+    cashPending,
+    count: donations.length,
+  };
+}
+
+export function calcCouponSummary(coupons: CouponRecord[]): CouponSummary {
+  const totalAmount = coupons.reduce((s, c) => s + Number(c.amount), 0);
+  const upiAmount = coupons
+    .filter((c) => c.money_type === 'UPI')
+    .reduce((s, c) => s + Number(c.amount), 0);
+  const cashHandedOver = coupons
+    .filter((c) => c.money_type === 'Cash' && c.is_handed_over !== false)
+    .reduce((s, c) => s + Number(c.amount), 0);
+  const cashPending = coupons
+    .filter((c) => c.money_type === 'Cash' && c.is_handed_over === false)
+    .reduce((s, c) => s + Number(c.amount), 0);
+
+  return {
+    totalAmount,
+    upiAmount,
+    cashHandedOver,
+    cashPending,
+    count: coupons.length,
   };
 }
 

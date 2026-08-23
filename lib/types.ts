@@ -79,6 +79,33 @@ export interface FinanceCallRecord {
   created_at?: string;
 }
 
+export interface CouponRecord {
+  id: string;
+  contributor_name: string;
+  mobile_number?: string | null;
+  date: string;
+  money_type: MoneyType;
+  amount: number;
+  collected_by?: string | null;
+  booklet_number?: string | null;
+  notes?: string | null;
+  screenshot_link?: string | null;
+  created_at?: string;
+}
+
+export interface ChurchDonationRecord {
+  id: string;
+  church_name: string;
+  contact_number?: string | null;
+  date: string;
+  collected_by?: string | null;
+  money_type: MoneyType;
+  amount: number;
+  notes?: string | null;
+  screenshot_link?: string | null;
+  created_at?: string;
+}
+
 // Alias for generic commitment calculations
 export type CommitmentRecord = PersonalCommitmentRecord;
 

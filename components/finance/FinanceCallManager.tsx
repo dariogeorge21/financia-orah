@@ -24,7 +24,11 @@ import { AddFinanceCallDialog } from './AddFinanceCallDialog';
 import { EditFinanceCallDialog } from './EditFinanceCallDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
-import { fetchFinanceCallsData, deleteFinanceCall } from '@/features/finance-calls';
+import {
+  fetchFinanceCallsData,
+  deleteFinanceCall,
+  updateFinanceCall,
+} from '@/features/finance-calls';
 
 interface FinanceCallManagerProps {
   initialCalls: FinanceCallRecord[];
@@ -88,6 +92,20 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
       return matchesSearch && matchesCaller && matchesStatus;
     });
   }, [calls, searchQuery, callerFilter, statusFilter]);
+
+  // Handle Handover Toggle
+  async function handleToggleHandover(fc: FinanceCallRecord) {
+    const nextVal = fc.is_handed_over === false ? true : false;
+    try {
+      await updateFinanceCall(fc.id, { is_handed_over: nextVal });
+      setCalls((prev) =>
+        prev.map((item) => (item.id === fc.id ? { ...item, is_handed_over: nextVal } : item))
+      );
+      handleRefresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update handover status.');
+    }
+  }
 
   // Refresh via API
   function handleRefresh() {
@@ -385,15 +403,18 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                           {formatINR(fc.received)}
                         </span>
                         {fc.received > 0 && fc.money_type === 'Cash' && (
-                          <span
-                            className={`block text-[9px] font-medium mt-0.5 ${
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(fc)}
+                            title={fc.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
+                            className={`block text-[9px] font-medium mt-0.5 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                               fc.is_handed_over === false
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-emerald-600 dark:text-emerald-400'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
                             }`}
                           >
-                            {fc.is_handed_over === false ? 'Pending Handover' : 'Cash In Hand'}
-                          </span>
+                            {fc.is_handed_over === false ? '⏳ Pending Handover' : '✓ Cash In Hand'}
+                          </button>
                         )}
                       </div>
                       <div>
@@ -537,16 +558,19 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                         <div className="flex items-center gap-1.5">
                           <span>{formatINR(fc.received)}</span>
                           {fc.received > 0 && fc.money_type && (
-                            <span
-                              className={`text-[10px] font-mono px-1 rounded ${
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHandover(fc)}
+                              title={fc.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
+                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                                 fc.money_type === 'Cash' && fc.is_handed_over === false
-                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                                  : 'bg-muted text-muted-foreground'
+                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                  : 'bg-muted text-muted-foreground hover:bg-accent'
                               }`}
                             >
                               {fc.money_type}
-                              {fc.money_type === 'Cash' && fc.is_handed_over === false && ' (Pending)'}
-                            </span>
+                              {fc.money_type === 'Cash' && (fc.is_handed_over === false ? ' (⏳ Pending)' : ' (✓ Handed)')}
+                            </button>
                           )}
                         </div>
                       </td>

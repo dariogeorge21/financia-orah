@@ -17,7 +17,11 @@ import { AddPersonalCommitmentDialog } from './AddPersonalCommitmentDialog';
 import { EditCommitmentDialog } from './EditCommitmentDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
-import { fetchPersonalCommitmentsData as fetchCommitmentsData, deletePersonalCommitment as deleteCommitment } from '@/features/personal-commitments';
+import {
+  fetchPersonalCommitmentsData as fetchCommitmentsData,
+  deletePersonalCommitment as deleteCommitment,
+  updatePersonalCommitment,
+} from '@/features/personal-commitments';
 
 interface CommitmentManagerProps {
   initialCommitments: PersonalCommitmentRecord[];
@@ -51,22 +55,36 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
   const totalPending = Math.max(0, totalPromised - totalReceived);
   const fulfillmentPct = totalPromised > 0 ? Math.round((totalReceived / totalPromised) * 100) : 0;
 
-      {/* Filtered list */}
-      const filteredCommitments = useMemo(() => {
-        return commitments.filter((c) => {
-          const q = searchQuery.toLowerCase();
-          const matchesSearch =
-            c.person_name.toLowerCase().includes(q) ||
-            c.id.toLowerCase().includes(q) ||
-            (c.mobile_number && c.mobile_number.includes(q)) ||
-            (c.caller_name && c.caller_name.toLowerCase().includes(q)) ||
-            (c.notes && c.notes.toLowerCase().includes(q));
+  {/* Filtered list */}
+  const filteredCommitments = useMemo(() => {
+    return commitments.filter((c) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        c.person_name.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        (c.mobile_number && c.mobile_number.includes(q)) ||
+        (c.caller_name && c.caller_name.toLowerCase().includes(q)) ||
+        (c.notes && c.notes.toLowerCase().includes(q));
 
-          const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
 
-          return matchesSearch && matchesStatus;
-        });
-      }, [commitments, searchQuery, statusFilter]);
+      return matchesSearch && matchesStatus;
+    });
+  }, [commitments, searchQuery, statusFilter]);
+
+  // Handle Handover Toggle
+  async function handleToggleHandover(com: PersonalCommitmentRecord) {
+    const nextVal = com.is_handed_over === false ? true : false;
+    try {
+      await updatePersonalCommitment(com.id, { is_handed_over: nextVal });
+      setCommitments((prev) =>
+        prev.map((item) => (item.id === com.id ? { ...item, is_handed_over: nextVal } : item))
+      );
+      handleRefresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update handover status.');
+    }
+  }
 
   // Refresh via API
   function handleRefresh() {
@@ -347,15 +365,18 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                           {formatINR(com.received)}
                         </span>
                         {com.received > 0 && com.money_type === 'Cash' && (
-                          <span
-                            className={`block text-[9px] font-medium mt-0.5 ${
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(com)}
+                            title={com.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
+                            className={`block text-[9px] font-medium mt-0.5 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                               com.is_handed_over === false
-                                ? 'text-amber-600 dark:text-amber-400'
-                                : 'text-emerald-600 dark:text-emerald-400'
+                                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
                             }`}
                           >
-                            {com.is_handed_over === false ? 'Pending Handover' : 'Cash In Hand'}
-                          </span>
+                            {com.is_handed_over === false ? '⏳ Pending Handover' : '✓ Cash In Hand'}
+                          </button>
                         )}
                       </div>
                       <div>
@@ -487,16 +508,19 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                         <div className="flex items-center gap-1.5">
                           <span>{formatINR(com.received)}</span>
                           {com.received > 0 && com.money_type && (
-                            <span
-                              className={`text-[10px] font-mono px-1 rounded ${
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHandover(com)}
+                              title={com.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
+                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                                 com.money_type === 'Cash' && com.is_handed_over === false
-                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                                  : 'bg-muted text-muted-foreground'
+                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                  : 'bg-muted text-muted-foreground hover:bg-accent'
                               }`}
                             >
                               {com.money_type}
-                              {com.money_type === 'Cash' && com.is_handed_over === false && ' (Pending)'}
-                            </span>
+                              {com.money_type === 'Cash' && (com.is_handed_over === false ? ' (⏳ Pending)' : ' (✓ Handed)')}
+                            </button>
                           )}
                         </div>
                       </td>

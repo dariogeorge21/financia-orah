@@ -119,6 +119,58 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Income record not found.' }, { status: 404 });
     }
 
+    // Bi-directional synchronization to source tables
+    const refId = updatedIncome.reference_id || updatedIncome.commitment_id;
+    if (refId) {
+      const isHandedOverVal = updatedIncome.money_type === 'UPI' ? true : (updatedIncome.is_handed_over !== false);
+
+      if (updatedIncome.type === 'Church' || /^CHU-/i.test(refId) || /^CDON-/i.test(refId)) {
+        const sourceUpdates: Record<string, unknown> = {
+          is_handed_over: isHandedOverVal,
+        };
+        if (updatePayload.money_type !== undefined) sourceUpdates.money_type = updatedIncome.money_type;
+        if (updatePayload.amount !== undefined) sourceUpdates.amount = updatedIncome.amount;
+        if (updatePayload.date !== undefined) sourceUpdates.date = updatedIncome.date;
+        if (updatePayload.contributor !== undefined) sourceUpdates.church_name = updatedIncome.contributor;
+        if (updatePayload.mobile_number !== undefined) sourceUpdates.contact_number = updatedIncome.mobile_number;
+
+        await supabase
+          .from('church_donations')
+          .update(sourceUpdates)
+          .eq('id', refId);
+      } else if (updatedIncome.type === 'Coupon' || /^CPN-/i.test(refId) || /^COUP-/i.test(refId)) {
+        const sourceUpdates: Record<string, unknown> = {
+          is_handed_over: isHandedOverVal,
+        };
+        if (updatePayload.money_type !== undefined) sourceUpdates.money_type = updatedIncome.money_type;
+        if (updatePayload.amount !== undefined) sourceUpdates.amount = updatedIncome.amount;
+        if (updatePayload.date !== undefined) sourceUpdates.date = updatedIncome.date;
+        if (updatePayload.contributor !== undefined) sourceUpdates.contributor_name = updatedIncome.contributor;
+        if (updatePayload.mobile_number !== undefined) sourceUpdates.mobile_number = updatedIncome.mobile_number;
+
+        await supabase
+          .from('coupons')
+          .update(sourceUpdates)
+          .eq('id', refId);
+      } else if (updatedIncome.type === 'Personal Commitment' || /^PCOM-/i.test(refId)) {
+        await supabase
+          .from('personal_commitments')
+          .update({
+            is_handed_over: isHandedOverVal,
+            ...(updatePayload.money_type !== undefined ? { money_type: updatedIncome.money_type } : {}),
+          })
+          .eq('id', refId);
+      } else if (updatedIncome.type === 'Finance Call' || /^FC-/i.test(refId)) {
+        await supabase
+          .from('finance_calls')
+          .update({
+            is_handed_over: isHandedOverVal,
+            ...(updatePayload.money_type !== undefined ? { money_type: updatedIncome.money_type } : {}),
+          })
+          .eq('id', refId);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: updatedIncome,

@@ -22,6 +22,12 @@ export async function GET() {
     const cashTotal = income
       .filter((i) => i.money_type === 'Cash')
       .reduce((s, i) => s + Number(i.amount), 0);
+    const cashHandedOverTotal = income
+      .filter((i) => i.money_type === 'Cash' && i.is_handed_over !== false)
+      .reduce((s, i) => s + Number(i.amount), 0);
+    const cashPendingTotal = income
+      .filter((i) => i.money_type === 'Cash' && i.is_handed_over === false)
+      .reduce((s, i) => s + Number(i.amount), 0);
     const upiTotal = income
       .filter((i) => i.money_type === 'UPI')
       .reduce((s, i) => s + Number(i.amount), 0);
@@ -33,6 +39,8 @@ export async function GET() {
         summary: {
           totalIncome,
           cashTotal,
+          cashHandedOverTotal,
+          cashPendingTotal,
           upiTotal,
           totalCount: income.length,
         },
@@ -64,6 +72,7 @@ export async function POST(request: Request) {
     const description = typeof body.description === 'string' ? body.description.trim() : '';
     const amount = Number(body.amount);
     const moneyType = body.money_type as MoneyType;
+    const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : true;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
     const referenceId = typeof body.reference_id === 'string' ? body.reference_id.trim() : null;
 
@@ -122,6 +131,7 @@ export async function POST(request: Request) {
         description,
         amount,
         money_type: moneyType,
+        is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         notes: notes || null,
         reference_id: referenceId || null,

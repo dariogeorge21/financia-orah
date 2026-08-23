@@ -17,7 +17,7 @@ import { AddChurchDonationDialog } from './AddChurchDonationDialog';
 import { EditChurchDonationDialog } from './EditChurchDonationDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
-import { fetchChurchDonationsData, deleteChurchDonation } from '@/features/church-donations';
+import { fetchChurchDonationsData, deleteChurchDonation, updateChurchDonation } from '@/features/church-donations';
 
 interface ChurchDonationManagerProps {
   initialDonations: ChurchDonationRecord[];
@@ -62,9 +62,34 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
     return donations.filter((d) => d.money_type === 'Cash').reduce((sum, d) => sum + Number(d.amount), 0);
   }, [donations]);
 
+  const cashHandedOver = useMemo(() => {
+    return donations
+      .filter((d) => d.money_type === 'Cash' && d.is_handed_over !== false)
+      .reduce((sum, d) => sum + Number(d.amount), 0);
+  }, [donations]);
+
+  const cashPending = useMemo(() => {
+    return donations
+      .filter((d) => d.money_type === 'Cash' && d.is_handed_over === false)
+      .reduce((sum, d) => sum + Number(d.amount), 0);
+  }, [donations]);
+
   const upiAmount = useMemo(() => {
     return donations.filter((d) => d.money_type === 'UPI').reduce((sum, d) => sum + Number(d.amount), 0);
   }, [donations]);
+
+  async function handleToggleHandover(donation: ChurchDonationRecord) {
+    const nextVal = donation.is_handed_over === false ? true : false;
+    try {
+      await updateChurchDonation(donation.id, { is_handed_over: nextVal });
+      setDonations((prev) =>
+        prev.map((d) => (d.id === donation.id ? { ...d, is_handed_over: nextVal } : d))
+      );
+      handleRefresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update handover status.');
+    }
+  }
 
   function handleRefresh() {
     startRefresh(async () => {
@@ -130,7 +155,13 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
             {formatINR(cashAmount)}
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {donations.filter((d) => d.money_type === 'Cash').length} cash payments
+            {cashPending > 0 ? (
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                In Hand: {formatINR(cashHandedOver)} • Pending: {formatINR(cashPending)}
+              </span>
+            ) : (
+              `${donations.filter((d) => d.money_type === 'Cash').length} cash payments`
+            )}
           </div>
         </div>
 
@@ -248,9 +279,33 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
                     {d.id}
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {d.money_type}
-                    </Badge>
+                    {d.money_type === 'Cash' ? (
+                      d.is_handed_over === false ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHandover(d)}
+                          title="Cash is pending with volunteer. Click to mark handed over to finance."
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Pending Handover
+                        </button>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        >
+                          Cash • In Hand
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                      >
+                        UPI
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">{d.date}</span>
                   </div>
                 </div>
@@ -395,9 +450,33 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
                       +{formatINR(d.amount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge variant="secondary" className="text-xs">
-                        {d.money_type}
-                      </Badge>
+                      {d.money_type === 'Cash' ? (
+                        d.is_handed_over === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(d)}
+                            title="Pending with volunteer. Click to mark handed over to finance."
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Pending Handover
+                          </button>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          >
+                            Cash • In Hand
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                        >
+                          UPI
+                        </Badge>
+                      )}
                     </td>
                     <td
                       className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"

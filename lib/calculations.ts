@@ -33,8 +33,12 @@ export function calcMoneyPosition(
   expenses: ExpenseRecord[],
   reimbursements: ReimbursementRecord[]
 ): MoneyPosition {
-  const cashIncome = income
-    .filter((i) => i.money_type === 'Cash')
+  const handedOverCashIncome = income
+    .filter((i) => i.money_type === 'Cash' && i.is_handed_over !== false)
+    .reduce((s, i) => s + Number(i.amount), 0);
+
+  const pendingCashIncome = income
+    .filter((i) => i.money_type === 'Cash' && i.is_handed_over === false)
     .reduce((s, i) => s + Number(i.amount), 0);
 
   const upiIncome = income
@@ -57,11 +61,15 @@ export function calcMoneyPosition(
     .filter((r) => r.money_type_paid === 'UPI' && r.status === 'Paid')
     .reduce((s, r) => s + Number(r.amount), 0);
 
-  const cashAvailable = cashIncome - cashExpenses - cashReimb;
+  const cashAvailable = handedOverCashIncome - cashExpenses - cashReimb;
+  const cashPendingHandover = pendingCashIncome;
+  const totalCash = cashAvailable + cashPendingHandover;
   const upiAvailable = upiIncome - upiExpenses - upiReimb;
 
   return {
     cashAvailable,
+    cashPendingHandover,
+    totalCash,
     upiAvailable,
     total: cashAvailable + upiAvailable,
   };

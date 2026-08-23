@@ -84,6 +84,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : false;
+
     // Generate next sequential CHU-XXXX id
     const { data: allIds } = await supabase.from('church_donations').select('id');
 
@@ -110,6 +112,7 @@ export async function POST(request: Request) {
         collected_by: collectedBy || null,
         money_type: moneyType,
         amount,
+        is_handed_over: isHandedOver,
         notes: notes || null,
         screenshot_link: screenshotLink || null,
       })
@@ -154,6 +157,7 @@ export async function POST(request: Request) {
         description: 'Church & Convent Donation',
         amount,
         money_type: moneyType,
+        is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         notes: combinedNotes || null,
         reference_id: nextId,

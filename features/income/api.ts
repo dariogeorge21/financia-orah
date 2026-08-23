@@ -6,6 +6,8 @@ import type { IncomeRecord, IncomeType, MoneyType } from '@/lib/types';
 export interface IncomeSummary {
   totalIncome: number;
   cashTotal: number;
+  cashHandedOverTotal: number;
+  cashPendingTotal: number;
   upiTotal: number;
   totalCount: number;
 }
@@ -35,6 +37,7 @@ export interface CreateIncomeInput {
   description: string;
   amount: number;
   money_type: MoneyType;
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;
@@ -48,6 +51,7 @@ export interface UpdateIncomeInput {
   description?: string;
   amount?: number;
   money_type?: MoneyType;
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;

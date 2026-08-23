@@ -88,7 +88,11 @@ export default async function DashboardPage() {
           <KpiCard
             title="Cash Available"
             value={formatINR(money.cashAvailable)}
-            subtitle="Physical cash in hand"
+            subtitle={
+              money.cashPendingHandover > 0
+                ? `In hand (${formatINR(money.cashPendingHandover)} pending handover)`
+                : 'Physical cash in hand'
+            }
             accentClass="from-emerald-500 to-teal-600"
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

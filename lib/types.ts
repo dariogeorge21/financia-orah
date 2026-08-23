@@ -44,6 +44,7 @@ export interface IncomeRecord {
   description: string;
   amount: number;
   money_type: MoneyType;
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
   reference_id?: string | null;
@@ -59,6 +60,7 @@ export interface PersonalCommitmentRecord {
   promised: number;
   received: number;
   money_type?: MoneyType | null;
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
@@ -73,6 +75,7 @@ export interface FinanceCallRecord {
   promised: number;
   received: number;
   money_type?: MoneyType | null;
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
@@ -86,6 +89,7 @@ export interface CouponRecord {
   date: string;
   money_type: MoneyType;
   amount: number;
+  is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;
@@ -101,6 +105,7 @@ export interface ChurchDonationRecord {
   collected_by?: string | null;
   money_type: MoneyType;
   amount: number;
+  is_handed_over?: boolean | null;
   notes?: string | null;
   screenshot_link?: string | null;
   created_at?: string;
@@ -149,6 +154,8 @@ export interface ReimbursementRecord {
 // Dashboard computed types
 export interface MoneyPosition {
   cashAvailable: number;
+  cashPendingHandover: number;
+  totalCash: number;
   upiAvailable: number;
   total: number;
 }

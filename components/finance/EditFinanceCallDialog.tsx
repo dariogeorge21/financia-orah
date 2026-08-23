@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ export function EditFinanceCallDialog({
   const [promised, setPromised] = useState('');
   const [received, setReceived] = useState('');
   const [moneyType, setMoneyType] = useState<'Cash' | 'UPI'>('UPI');
+  const [isHandedOver, setIsHandedOver] = useState(false);
   const [screenshotLink, setScreenshotLink] = useState('');
   const [status, setStatus] = useState<CommitmentStatus>('Pending');
   const [notes, setNotes] = useState('');
@@ -64,6 +66,7 @@ export function EditFinanceCallDialog({
         setReceived(String(call.received ?? 0));
       }
       setMoneyType(call.money_type === 'Cash' ? 'Cash' : 'UPI');
+      setIsHandedOver(call.is_handed_over !== false);
       setScreenshotLink(call.screenshot_link || '');
       setNotes(call.notes || '');
       setError(null);
@@ -141,6 +144,7 @@ export function EditFinanceCallDialog({
           promised: promisedNum,
           received: finalReceived,
           money_type: finalReceived > 0 ? moneyType : undefined,
+          is_handed_over: finalReceived > 0 && moneyType === 'Cash' ? isHandedOver : true,
           screenshot_link: screenshotLink.trim() || null,
           status,
           notes: notes.trim() || null,
@@ -166,9 +170,9 @@ export function EditFinanceCallDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-1.5">
-            <Label htmlFor="edit-fc-person">Contact / Donor Name <span className="text-destructive">*</span></Label>
+            <Label htmlFor="edit-person">Person Name <span className="text-destructive">*</span></Label>
             <Input
-              id="edit-fc-person"
+              id="edit-person"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               required
@@ -177,18 +181,19 @@ export function EditFinanceCallDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-fc-mobile">Mobile Number</Label>
+              <Label htmlFor="edit-mobile">Mobile Number</Label>
               <Input
-                id="edit-fc-mobile"
+                id="edit-mobile"
                 type="tel"
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="edit-fc-caller">Caller (Volunteer)</Label>
+              <Label htmlFor="edit-caller">Caller / Volunteer</Label>
               <Input
-                id="edit-fc-caller"
+                id="edit-caller"
+                placeholder="Volunteer name"
                 value={callerName}
                 onChange={(e) => setCallerName(e.target.value)}
               />
@@ -198,7 +203,7 @@ export function EditFinanceCallDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="edit-fc-promised">Promised (₹) <span className="text-destructive">*</span></Label>
+                <Label htmlFor="edit-promised">Promised (₹) <span className="text-destructive">*</span></Label>
                 {promised && !isNaN(parseFloat(promised)) && (
                   <span className="text-[10px] font-semibold text-muted-foreground">
                     {formatINR(parseFloat(promised))}
@@ -206,7 +211,7 @@ export function EditFinanceCallDialog({
                 )}
               </div>
               <Input
-                id="edit-fc-promised"
+                id="edit-promised"
                 type="number"
                 min="1"
                 step="1"
@@ -217,9 +222,9 @@ export function EditFinanceCallDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="edit-fc-status">Status</Label>
+              <Label htmlFor="edit-status">Status</Label>
               <Select value={status} onValueChange={(val) => handleStatusChange(val as CommitmentStatus)}>
-                <SelectTrigger id="edit-fc-status">
+                <SelectTrigger id="edit-status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -233,9 +238,9 @@ export function EditFinanceCallDialog({
           </div>
 
           {status === 'Partially Received' ? (
-            <div className="space-y-1.5 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 animate-in fade-in-50 duration-200">
+            <div className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 animate-in fade-in-50 duration-200">
               <div className="flex justify-between items-center">
-                <Label htmlFor="edit-fc-received" className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                <Label htmlFor="edit-received" className="text-xs font-semibold text-amber-700 dark:text-amber-300">
                   Partially Received Amount (₹) <span className="text-destructive">*</span>
                 </Label>
                 {received && !isNaN(parseFloat(received)) && (
@@ -245,7 +250,7 @@ export function EditFinanceCallDialog({
                 )}
               </div>
               <Input
-                id="edit-fc-received"
+                id="edit-received"
                 type="number"
                 min="1"
                 max={promised ? parseFloat(promised) - 1 : undefined}
@@ -294,6 +299,24 @@ export function EditFinanceCallDialog({
                   ))}
                 </div>
               </div>
+
+              {moneyType === 'Cash' && (
+                <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+                  <div className="space-y-0.5 pr-2">
+                    <Label htmlFor="edit-fc-handed-over" className="text-xs font-semibold text-foreground cursor-pointer">
+                      Cash Handed Over to Finance Team?
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Toggle ON if the volunteer has handed the cash over to finance.
+                    </p>
+                  </div>
+                  <Switch
+                    id="edit-fc-handed-over"
+                    checked={isHandedOver}
+                    onCheckedChange={(checked) => setIsHandedOver(checked)}
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="edit-fc-screenshot" className="text-xs font-medium">

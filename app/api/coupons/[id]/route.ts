@@ -53,6 +53,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (body.booklet_number !== undefined) updates.booklet_number = body.booklet_number ? body.booklet_number.trim() : null;
     if (body.notes !== undefined) updates.notes = body.notes ? body.notes.trim() : null;
     if (body.screenshot_link !== undefined) updates.screenshot_link = body.screenshot_link ? body.screenshot_link.trim() : null;
+    if (body.is_handed_over !== undefined) updates.is_handed_over = Boolean(body.is_handed_over);
 
     if (updates.amount !== undefined && (isNaN(updates.amount) || updates.amount <= 0)) {
       return NextResponse.json({ success: false, error: 'Amount must be greater than 0.' }, { status: 400 });
@@ -91,6 +92,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           description: desc,
           amount: currentCoupon.amount,
           money_type: currentCoupon.money_type,
+          is_handed_over: currentCoupon.money_type === 'UPI' ? true : currentCoupon.is_handed_over,
           screenshot_link: currentCoupon.screenshot_link || null,
           notes: combinedNotes || null,
         })

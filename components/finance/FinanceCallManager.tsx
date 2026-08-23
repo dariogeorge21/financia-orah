@@ -384,6 +384,17 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                         <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                           {formatINR(fc.received)}
                         </span>
+                        {fc.received > 0 && fc.money_type === 'Cash' && (
+                          <span
+                            className={`block text-[9px] font-medium mt-0.5 ${
+                              fc.is_handed_over === false
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-emerald-600 dark:text-emerald-400'
+                            }`}
+                          >
+                            {fc.is_handed_over === false ? 'Pending Handover' : 'Cash In Hand'}
+                          </span>
+                        )}
                       </div>
                       <div>
                         <span className="text-[10px] text-muted-foreground block">Pending</span>
@@ -444,7 +455,7 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
 
           {filteredCalls.length === 0 && (
             <div className="col-span-full rounded-2xl border border-dashed border-border/80 p-8 text-center">
-              <p className="text-sm font-medium text-foreground">No finance call records found.</p>
+              <p className="text-sm font-medium text-foreground">No finance calls found.</p>
               <p className="text-xs text-muted-foreground mt-1">Try changing your filters or search query.</p>
             </div>
           )}
@@ -456,16 +467,26 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Contact / Donor', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  {[
+                    'ID',
+                    'Contact Name',
+                    'Mobile',
+                    'Caller',
+                    'Promised',
+                    'Received',
+                    'Pending',
+                    'Progress',
+                    'Status',
+                    'Notes',
+                    'Actions',
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
@@ -500,9 +521,9 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                         {fc.mobile_number || '—'}
                       </td>
-                      <td className="px-4 py-3 text-xs font-medium whitespace-nowrap">
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                         {fc.caller_name ? (
-                          <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5">
+                          <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 text-xs font-medium">
                             {fc.caller_name}
                           </span>
                         ) : (
@@ -516,8 +537,15 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                         <div className="flex items-center gap-1.5">
                           <span>{formatINR(fc.received)}</span>
                           {fc.received > 0 && fc.money_type && (
-                            <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1 rounded">
+                            <span
+                              className={`text-[10px] font-mono px-1 rounded ${
+                                fc.money_type === 'Cash' && fc.is_handed_over === false
+                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
                               {fc.money_type}
+                              {fc.money_type === 'Cash' && fc.is_handed_over === false && ' (Pending)'}
                             </span>
                           )}
                         </div>

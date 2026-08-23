@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ export function EditCommitmentDialog({
   const [promised, setPromised] = useState('');
   const [received, setReceived] = useState('');
   const [moneyType, setMoneyType] = useState<'Cash' | 'UPI'>('UPI');
+  const [isHandedOver, setIsHandedOver] = useState(false);
   const [screenshotLink, setScreenshotLink] = useState('');
   const [status, setStatus] = useState<CommitmentStatus>('Pending');
   const [notes, setNotes] = useState('');
@@ -64,6 +66,7 @@ export function EditCommitmentDialog({
         setReceived(String(commitment.received ?? 0));
       }
       setMoneyType(commitment.money_type === 'Cash' ? 'Cash' : 'UPI');
+      setIsHandedOver(commitment.is_handed_over !== false);
       setScreenshotLink(commitment.screenshot_link || '');
       setNotes(commitment.notes || '');
       setError(null);
@@ -143,6 +146,7 @@ export function EditCommitmentDialog({
           promised: promisedNum,
           received: finalReceived,
           money_type: finalReceived > 0 ? moneyType : undefined,
+          is_handed_over: finalReceived > 0 && moneyType === 'Cash' ? isHandedOver : true,
           screenshot_link: screenshotLink.trim() || null,
           status,
           notes: notes.trim() || null,
@@ -158,84 +162,87 @@ export function EditCommitmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Commitment ({commitment.id})</DialogTitle>
+          <DialogTitle>Edit Personal Commitment</DialogTitle>
           <DialogDescription>
-            Update donor details, promised amount, received status, or notes.
+            Update donor details, committed amount, and payment progress for {commitment.id}.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-person">Person Name <span className="text-destructive">*</span></Label>
-            <Input
-              id="edit-person"
-              value={personName}
-              onChange={(e) => setPersonName(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Person Name *</Label>
+              <Input
+                id="edit-name"
+                placeholder="Full name"
+                value={personName}
+                onChange={(e) => setPersonName(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-mobile">Mobile Number</Label>
               <Input
                 id="edit-mobile"
                 type="tel"
+                placeholder="Mobile number"
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-caller">Caller / Volunteer</Label>
-              <Input
-                id="edit-caller"
-                placeholder="Volunteer name"
-                value={callerName}
-                onChange={(e) => setCallerName(e.target.value)}
-              />
-            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="edit-promised">Promised (₹) <span className="text-destructive">*</span></Label>
-                {promised && !isNaN(parseFloat(promised)) && (
-                  <span className="text-[10px] font-semibold text-muted-foreground">
-                    {formatINR(parseFloat(promised))}
-                  </span>
-                )}
-              </div>
-              <Input
-                id="edit-promised"
-                type="number"
-                min="1"
-                step="1"
-                value={promised}
-                onChange={(e) => handlePromisedChange(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select value={status} onValueChange={(val) => handleStatusChange(val as CommitmentStatus)}>
-                <SelectTrigger id="edit-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pending">Pending (Not Paid)</SelectItem>
-                  <SelectItem value="Partially Received">Partially Received</SelectItem>
-                  <SelectItem value="Fully Received">Fully Received</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-caller">Caller / Follow-up Volunteer</Label>
+            <Input
+              id="edit-caller"
+              placeholder="Name of volunteer following up"
+              value={callerName}
+              onChange={(e) => setCallerName(e.target.value)}
+            />
           </div>
 
-          {/* Conditional Received Amount Display / Edit */}
+          <div className="space-y-1.5">
+            <div className="flex justify-between items-center">
+              <Label htmlFor="edit-promised">Promised Amount (₹) *</Label>
+              {promised && !isNaN(parseFloat(promised)) && (
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  {formatINR(parseFloat(promised))}
+                </span>
+              )}
+            </div>
+            <Input
+              id="edit-promised"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="0"
+              value={promised}
+              onChange={(e) => handlePromisedChange(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-status">Status</Label>
+            <Select
+              value={status}
+              onValueChange={(val) => handleStatusChange(val as CommitmentStatus)}
+            >
+              <SelectTrigger id="edit-status">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Pending">Pending (Not Yet Received)</SelectItem>
+                <SelectItem value="Partially Received">Partially Received</SelectItem>
+                <SelectItem value="Fully Received">Fully Received (Paid in Full)</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {status === 'Partially Received' ? (
             <div className="space-y-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 animate-in fade-in-50 duration-200">
               <div className="flex justify-between items-center">
@@ -298,6 +305,24 @@ export function EditCommitmentDialog({
                   ))}
                 </div>
               </div>
+
+              {moneyType === 'Cash' && (
+                <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+                  <div className="space-y-0.5 pr-2">
+                    <Label htmlFor="edit-pcom-handed-over" className="text-xs font-semibold text-foreground cursor-pointer">
+                      Cash Handed Over to Finance Team?
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Toggle ON if the cash has reached the finance team.
+                    </p>
+                  </div>
+                  <Switch
+                    id="edit-pcom-handed-over"
+                    checked={isHandedOver}
+                    onCheckedChange={(checked) => setIsHandedOver(checked)}
+                  />
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label htmlFor="edit-pcom-screenshot" className="text-xs font-medium">

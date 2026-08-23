@@ -80,6 +80,10 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.is_handed_over !== undefined) {
+      updatePayload.is_handed_over = Boolean(body.is_handed_over);
+    }
+
     if (body.screenshot_link !== undefined) {
       updatePayload.screenshot_link =
         typeof body.screenshot_link === 'string' && body.screenshot_link.trim().length > 0

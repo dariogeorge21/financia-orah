@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { createPersonalCommitment as createCommitment } from '@/features/personal-commitments';
 import { formatINR, calcMoneyPosition } from '@/lib/calculations';
 import type { CommitmentStatus, MoneyPosition } from '@/lib/types';
@@ -58,11 +59,12 @@ export function AddPersonalCommitmentDialog({
     promised: '',
     received: '',
     money_type: 'UPI' as 'Cash' | 'UPI',
+    is_handed_over: false,
     screenshot_link: '',
     notes: '',
   });
 
-  function set(key: string, value: string) {
+  function set(key: string, value: unknown) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -111,6 +113,7 @@ export function AddPersonalCommitmentDialog({
           promised: promisedNum,
           received: finalReceived,
           money_type: finalReceived > 0 ? form.money_type : undefined,
+          is_handed_over: finalReceived > 0 && form.money_type === 'Cash' ? form.is_handed_over : true,
           screenshot_link: form.screenshot_link.trim() || null,
           status: finalStatus,
           notes: form.notes.trim() || null,
@@ -143,6 +146,7 @@ export function AddPersonalCommitmentDialog({
           promised: '',
           received: '',
           money_type: 'UPI',
+          is_handed_over: false,
           screenshot_link: '',
           notes: '',
         });
@@ -325,6 +329,24 @@ export function AddPersonalCommitmentDialog({
                     ))}
                   </div>
                 </div>
+
+                {form.money_type === 'Cash' && (
+                  <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+                    <div className="space-y-0.5 pr-2">
+                      <Label htmlFor="pcom-handed-over" className="text-xs font-semibold text-foreground cursor-pointer">
+                        Cash Handed Over to Finance Team?
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Toggle ON if the cash has already reached the finance team.
+                      </p>
+                    </div>
+                    <Switch
+                      id="pcom-handed-over"
+                      checked={form.is_handed_over}
+                      onCheckedChange={(checked) => set('is_handed_over', checked)}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label htmlFor="pcom-screenshot" className="text-xs">

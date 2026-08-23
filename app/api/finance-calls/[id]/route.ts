@@ -93,6 +93,10 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.is_handed_over !== undefined) {
+      updatePayload.is_handed_over = Boolean(body.is_handed_over);
+    }
+
     if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {
       updatePayload.status = body.status as CommitmentStatus;
     }
@@ -176,6 +180,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
         const moneyType = (body.money_type === 'Cash' ? 'Cash' : updatedCall.money_type === 'Cash' ? 'Cash' : 'UPI');
         const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+        const isHandedOver = moneyType === 'UPI' ? true : updatedCall.is_handed_over ?? false;
 
         await supabase.from('income').insert({
           id: incId,
@@ -186,6 +191,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           description: `Payment against ${callId}`,
           amount: diffAmt,
           money_type: moneyType,
+          is_handed_over: isHandedOver,
           screenshot_link: updatedCall.screenshot_link || null,
           notes: body.notes || `Payment update for ${callId}`,
           reference_id: callId,

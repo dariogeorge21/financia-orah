@@ -85,6 +85,8 @@ export async function POST(request: Request) {
       );
     }
 
+    const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : false;
+
     // Generate next sequential CPN-XXXX id
     const { data: allIds } = await supabase.from('coupons').select('id');
 
@@ -110,6 +112,7 @@ export async function POST(request: Request) {
         date,
         money_type: moneyType,
         amount,
+        is_handed_over: isHandedOver,
         collected_by: collectedBy || null,
         booklet_number: bookletNumber || null,
         notes: notes || null,
@@ -157,6 +160,7 @@ export async function POST(request: Request) {
         description: desc,
         amount,
         money_type: moneyType,
+        is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         notes: combinedNotes || null,
         reference_id: nextId,

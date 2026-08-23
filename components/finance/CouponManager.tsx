@@ -17,7 +17,7 @@ import { AddCouponDialog } from './AddCouponDialog';
 import { EditCouponDialog } from './EditCouponDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
-import { fetchCouponsData, deleteCoupon } from '@/features/coupons';
+import { fetchCouponsData, deleteCoupon, updateCoupon } from '@/features/coupons';
 
 interface CouponManagerProps {
   initialCoupons: CouponRecord[];
@@ -26,35 +26,35 @@ interface CouponManagerProps {
 export function CouponManager({ initialCoupons }: CouponManagerProps) {
   const [coupons, setCoupons] = useState<CouponRecord[]>(initialCoupons);
   const [searchQuery, setSearchQuery] = useState('');
-  const [modeFilter, setModeFilter] = useState<string>('ALL');
+  const [moneyTypeFilter, setMoneyTypeFilter] = useState<'ALL' | 'Cash' | 'UPI'>('ALL');
   const [viewMode, setViewMode] = useViewMode('coupons');
 
   const [isRefreshing, startRefresh] = useTransition();
+  const [isDeleting, startDelete] = useTransition();
   const [editingCoupon, setEditingCoupon] = useState<CouponRecord | null>(null);
   const [deletingCoupon, setDeletingCoupon] = useState<CouponRecord | null>(null);
-  const [isDeleting, startDelete] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Compute live filtered coupons
+  // Filtered List
   const filteredCoupons = useMemo(() => {
     return coupons.filter((c) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchSearch =
-        !q ||
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
         c.contributor_name.toLowerCase().includes(q) ||
-        (c.mobile_number && c.mobile_number.toLowerCase().includes(q)) ||
-        (c.booklet_number && c.booklet_number.toLowerCase().includes(q)) ||
+        (c.mobile_number && c.mobile_number.includes(q)) ||
         (c.collected_by && c.collected_by.toLowerCase().includes(q)) ||
+        (c.booklet_number && c.booklet_number.toLowerCase().includes(q)) ||
         (c.notes && c.notes.toLowerCase().includes(q)) ||
         c.id.toLowerCase().includes(q);
 
-      const matchMode = modeFilter === 'ALL' || c.money_type === modeFilter;
+      const matchesType =
+        moneyTypeFilter === 'ALL' || c.money_type === moneyTypeFilter;
 
-      return matchSearch && matchMode;
+      return matchesSearch && matchesType;
     });
-  }, [coupons, searchQuery, modeFilter]);
+  }, [coupons, searchQuery, moneyTypeFilter]);
 
-  // Aggregate metrics
+  // Aggregate Metrics
   const totalAmount = useMemo(() => {
     return coupons.reduce((sum, c) => sum + Number(c.amount), 0);
   }, [coupons]);
@@ -63,9 +63,34 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
     return coupons.filter((c) => c.money_type === 'Cash').reduce((sum, c) => sum + Number(c.amount), 0);
   }, [coupons]);
 
+  const cashHandedOver = useMemo(() => {
+    return coupons
+      .filter((c) => c.money_type === 'Cash' && c.is_handed_over !== false)
+      .reduce((sum, c) => sum + Number(c.amount), 0);
+  }, [coupons]);
+
+  const cashPending = useMemo(() => {
+    return coupons
+      .filter((c) => c.money_type === 'Cash' && c.is_handed_over === false)
+      .reduce((sum, c) => sum + Number(c.amount), 0);
+  }, [coupons]);
+
   const upiAmount = useMemo(() => {
     return coupons.filter((c) => c.money_type === 'UPI').reduce((sum, c) => sum + Number(c.amount), 0);
   }, [coupons]);
+
+  async function handleToggleHandover(coupon: CouponRecord) {
+    const nextVal = coupon.is_handed_over === false ? true : false;
+    try {
+      await updateCoupon(coupon.id, { is_handed_over: nextVal });
+      setCoupons((prev) =>
+        prev.map((c) => (c.id === coupon.id ? { ...c, is_handed_over: nextVal } : c))
+      );
+      handleRefresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update handover status.');
+    }
+  }
 
   function handleRefresh() {
     startRefresh(async () => {
@@ -131,7 +156,13 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
             {formatINR(cashAmount)}
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {coupons.filter((c) => c.money_type === 'Cash').length} cash contributions
+            {cashPending > 0 ? (
+              <span className="text-amber-600 dark:text-amber-400 font-medium">
+                In Hand: {formatINR(cashHandedOver)} • Pending: {formatINR(cashPending)}
+              </span>
+            ) : (
+              `${coupons.filter((c) => c.money_type === 'Cash').length} cash contributions`
+            )}
           </div>
         </div>
 
@@ -202,12 +233,12 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
         <div className="flex flex-wrap items-center gap-2">
           {/* Mode Filter */}
           <div className="flex items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
-            {['ALL', 'Cash', 'UPI'].map((m) => (
+            {(['ALL', 'Cash', 'UPI'] as const).map((m) => (
               <button
                 key={m}
-                onClick={() => setModeFilter(m)}
+                onClick={() => setMoneyTypeFilter(m)}
                 className={`rounded-md px-2.5 py-1 font-medium transition-all ${
-                  modeFilter === m
+                  moneyTypeFilter === m
                     ? 'bg-card text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -256,9 +287,33 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {c.money_type}
-                    </Badge>
+                    {c.money_type === 'Cash' ? (
+                      c.is_handed_over === false ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHandover(c)}
+                          title="Cash is pending with volunteer. Click to mark handed over to finance."
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Pending Handover
+                        </button>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        >
+                          Cash • In Hand
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                      >
+                        UPI
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">{c.date}</span>
                   </div>
                 </div>
@@ -406,9 +461,33 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                       +{formatINR(c.amount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge variant="secondary" className="text-xs">
-                        {c.money_type}
-                      </Badge>
+                      {c.money_type === 'Cash' ? (
+                        c.is_handed_over === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(c)}
+                            title="Pending with volunteer. Click to mark handed over to finance."
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Pending Handover
+                          </button>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          >
+                            Cash • In Hand
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                        >
+                          UPI
+                        </Badge>
+                      )}
                     </td>
                     <td
                       className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"

@@ -34,6 +34,7 @@ export interface CreateChurchDonationInput {
   collected_by?: string | null;
   money_type: MoneyType;
   amount: number;
+  is_handed_over?: boolean | null;
   notes?: string | null;
   screenshot_link?: string | null;
 }
@@ -45,6 +46,7 @@ export interface UpdateChurchDonationInput {
   collected_by?: string | null;
   money_type?: MoneyType;
   amount?: number;
+  is_handed_over?: boolean | null;
   notes?: string | null;
   screenshot_link?: string | null;
 }

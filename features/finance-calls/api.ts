@@ -40,6 +40,7 @@ export interface CreateFinanceCallInput {
   promised: number;
   received?: number;
   money_type?: 'Cash' | 'UPI';
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   date?: string;
   status?: CommitmentStatus;
@@ -53,6 +54,7 @@ export interface UpdateFinanceCallInput {
   promised?: number;
   received?: number;
   money_type?: 'Cash' | 'UPI';
+  is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   date?: string;
   status?: CommitmentStatus;

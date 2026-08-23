@@ -24,7 +24,7 @@ import { AddIncomeDialog } from './AddIncomeDialog';
 import { EditIncomeDialog } from './EditIncomeDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
-import { deleteIncome } from '@/features/income';
+import { deleteIncome, updateIncome } from '@/features/income';
 
 const TYPE_COLORS: Record<string, string> = {
   Registration: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -77,6 +77,20 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
         .reduce((s, i) => s + Number(i.amount), 0),
     [income]
   );
+  const cashHandedOverTotal = useMemo(
+    () =>
+      income
+        .filter((i) => i.money_type === 'Cash' && i.is_handed_over !== false)
+        .reduce((s, i) => s + Number(i.amount), 0),
+    [income]
+  );
+  const cashPendingTotal = useMemo(
+    () =>
+      income
+        .filter((i) => i.money_type === 'Cash' && i.is_handed_over === false)
+        .reduce((s, i) => s + Number(i.amount), 0),
+    [income]
+  );
   const upiTotal = useMemo(
     () =>
       income
@@ -99,11 +113,32 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
 
       const matchesType = typeFilter === 'ALL' || inc.type === typeFilter;
       const matchesMoneyType =
-        moneyTypeFilter === 'ALL' || inc.money_type === moneyTypeFilter;
+        moneyTypeFilter === 'ALL'
+          ? true
+          : moneyTypeFilter === 'Cash'
+          ? inc.money_type === 'Cash'
+          : moneyTypeFilter === 'Cash-Handed'
+          ? inc.money_type === 'Cash' && inc.is_handed_over !== false
+          : moneyTypeFilter === 'Cash-Pending'
+          ? inc.money_type === 'Cash' && inc.is_handed_over === false
+          : inc.money_type === 'UPI';
 
       return matchesSearch && matchesType && matchesMoneyType;
     });
   }, [income, searchQuery, typeFilter, moneyTypeFilter]);
+
+  async function handleToggleHandover(inc: IncomeRecord) {
+    const nextVal = inc.is_handed_over === false ? true : false;
+    try {
+      await updateIncome(inc.id, { is_handed_over: nextVal });
+      setIncome((prev) =>
+        prev.map((item) => (item.id === inc.id ? { ...item, is_handed_over: nextVal } : item))
+      );
+      handleRefresh();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update handover status.');
+    }
+  }
 
   // Refresh via API
   function handleRefresh() {
@@ -218,7 +253,14 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
           {
             label: 'Cash Receipts',
             value: formatINR(cashTotal),
-            subtext: `${income.filter((i) => i.money_type === 'Cash').length} cash payments`,
+            subtext:
+              cashPendingTotal > 0 ? (
+                <span className="text-amber-600 dark:text-amber-400 font-medium">
+                  In Hand: {formatINR(cashHandedOverTotal)} • Pending: {formatINR(cashPendingTotal)}
+                </span>
+              ) : (
+                `${income.filter((i) => i.money_type === 'Cash').length} cash receipts`
+              ),
             cls: 'text-emerald-600 dark:text-emerald-400',
           },
           {
@@ -234,7 +276,7 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
           >
             <p className="text-xs text-muted-foreground">{s.label}</p>
             <p className={`text-xl font-bold mt-1 ${s.cls}`}>{s.value}</p>
-            <p className="text-xs text-muted-foreground/80 mt-1">{s.subtext}</p>
+            <div className="text-xs text-muted-foreground/80 mt-1">{s.subtext}</div>
           </div>
         ))}
       </div>
@@ -294,18 +336,23 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
           </Select>
 
           {/* Money Type Filter */}
-          <div className="flex items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
-            {['ALL', 'Cash', 'UPI'].map((st) => (
+          <div className="flex items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs overflow-x-auto">
+            {[
+              { id: 'ALL', label: 'All' },
+              { id: 'Cash', label: 'All Cash' },
+              { id: 'Cash-Pending', label: 'Pending Cash' },
+              { id: 'UPI', label: 'UPI' },
+            ].map((st) => (
               <button
-                key={st}
-                onClick={() => setMoneyTypeFilter(st)}
-                className={`rounded-md px-2.5 py-1 font-medium transition-all ${
-                  moneyTypeFilter === st
+                key={st.id}
+                onClick={() => setMoneyTypeFilter(st.id)}
+                className={`rounded-md px-2 py-1 font-medium text-xs whitespace-nowrap transition-all ${
+                  moneyTypeFilter === st.id
                     ? 'bg-card text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                {st === 'ALL' ? 'All Modes' : st}
+                {st.label}
               </button>
             ))}
           </div>
@@ -339,12 +386,33 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <Badge
-                      variant={inc.money_type === 'Cash' ? 'secondary' : 'outline'}
-                      className="text-[10px] px-1.5 py-0"
-                    >
-                      {inc.money_type}
-                    </Badge>
+                    {inc.money_type === 'Cash' ? (
+                      inc.is_handed_over === false ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleHandover(inc)}
+                          title="Cash is pending with volunteer. Click to mark handed over to finance."
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                          Pending Handover
+                        </button>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                        >
+                          Cash • In Hand
+                        </Badge>
+                      )
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                      >
+                        UPI
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
@@ -501,12 +569,33 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
                       {formatINR(inc.amount)}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge
-                        variant={inc.money_type === 'Cash' ? 'secondary' : 'outline'}
-                        className="text-xs"
-                      >
-                        {inc.money_type}
-                      </Badge>
+                      {inc.money_type === 'Cash' ? (
+                        inc.is_handed_over === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(inc)}
+                            title="Pending with volunteer. Click to mark handed over to finance."
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Pending Handover
+                          </button>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          >
+                            Cash • In Hand
+                          </Badge>
+                        )
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
+                        >
+                          UPI
+                        </Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground max-w-[150px] truncate" title={inc.reference_id || inc.notes || ''}>
                       {inc.reference_id || inc.commitment_id ? (

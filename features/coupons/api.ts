@@ -33,6 +33,7 @@ export interface CreateCouponInput {
   date?: string;
   money_type: MoneyType;
   amount: number;
+  is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;
@@ -45,6 +46,7 @@ export interface UpdateCouponInput {
   date?: string;
   money_type?: MoneyType;
   amount?: number;
+  is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;

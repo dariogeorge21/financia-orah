@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { updateCoupon } from '@/features/coupons';
 import type { CouponRecord, MoneyType } from '@/lib/types';
 
@@ -43,6 +44,7 @@ export function EditCouponDialog({
     mobile_number: '',
     date: '',
     money_type: 'Cash' as MoneyType,
+    is_handed_over: false,
     amount: '',
     collected_by: '',
     booklet_number: '',
@@ -57,6 +59,7 @@ export function EditCouponDialog({
         mobile_number: coupon.mobile_number || '',
         date: coupon.date || new Date().toISOString().split('T')[0],
         money_type: coupon.money_type || 'Cash',
+        is_handed_over: coupon.is_handed_over !== false,
         amount: String(coupon.amount || ''),
         collected_by: coupon.collected_by || '',
         booklet_number: coupon.booklet_number || '',
@@ -67,7 +70,7 @@ export function EditCouponDialog({
     }
   }, [coupon]);
 
-  function set(key: string, value: string) {
+  function set(key: string, value: unknown) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -95,6 +98,7 @@ export function EditCouponDialog({
           date: form.date,
           money_type: form.money_type,
           amount: amountNum,
+          is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
           collected_by: form.collected_by.trim() || null,
           booklet_number: form.booklet_number.trim() || null,
           notes: form.notes.trim() || null,
@@ -198,6 +202,25 @@ export function EditCouponDialog({
               />
             </div>
           </div>
+
+          {/* Cash Handed Over Toggle */}
+          {form.money_type === 'Cash' && (
+            <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+              <div className="space-y-0.5 pr-2">
+                <Label htmlFor="edit_cpn_handed_over" className="text-xs font-semibold text-foreground cursor-pointer">
+                  Cash Handed Over to Finance Team?
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Toggle ON if the volunteer has handed the cash over to finance.
+                </p>
+              </div>
+              <Switch
+                id="edit_cpn_handed_over"
+                checked={form.is_handed_over}
+                onCheckedChange={(checked) => set('is_handed_over', checked)}
+              />
+            </div>
+          )}
 
           {/* Collected By (Volunteer) */}
           <div className="space-y-1.5">

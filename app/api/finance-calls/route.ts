@@ -121,6 +121,7 @@ export async function POST(request: Request) {
     }
 
     const nextId = `FC-${String(maxNum + 1).padStart(4, '0')}`;
+    const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : false;
 
     const { data: newCall, error: insertError } = await supabase
       .from('finance_calls')
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
         promised,
         received,
         money_type: moneyType,
+        is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         status,
         notes: notes || null,
@@ -175,6 +177,7 @@ export async function POST(request: Request) {
           description: `Payment against ${nextId}`,
           amount: received,
           money_type: incMoneyType,
+          is_handed_over: isHandedOver,
           screenshot_link: screenshotLink || null,
           notes: notes || `Auto-recorded from ${nextId}`,
           reference_id: nextId,

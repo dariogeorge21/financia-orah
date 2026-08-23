@@ -52,6 +52,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (body.collected_by !== undefined) updates.collected_by = body.collected_by ? body.collected_by.trim() : null;
     if (body.notes !== undefined) updates.notes = body.notes ? body.notes.trim() : null;
     if (body.screenshot_link !== undefined) updates.screenshot_link = body.screenshot_link ? body.screenshot_link.trim() : null;
+    if (body.is_handed_over !== undefined) updates.is_handed_over = Boolean(body.is_handed_over);
 
     if (updates.amount !== undefined && (isNaN(updates.amount) || updates.amount <= 0)) {
       return NextResponse.json({ success: false, error: 'Amount must be greater than 0.' }, { status: 400 });
@@ -89,6 +90,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           description: 'Church & Convent Donation',
           amount: currentDonation.amount,
           money_type: currentDonation.money_type,
+          is_handed_over: currentDonation.money_type === 'UPI' ? true : currentDonation.is_handed_over,
           screenshot_link: currentDonation.screenshot_link || null,
           notes: combinedNotes || null,
         })

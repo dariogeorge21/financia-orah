@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { createIncome } from '@/features/income';
 import { formatINR, calcMoneyPosition } from '@/lib/calculations';
 import type { IncomeType, MoneyType, MoneyPosition } from '@/lib/types';
@@ -73,11 +74,12 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
     description: '',
     amount: '',
     money_type: 'Cash' as MoneyType,
+    is_handed_over: true,
     notes: '',
     reference_id: '',
   });
 
-  function set(key: string, value: string) {
+  function set(key: string, value: unknown) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -118,6 +120,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           description: form.description.trim(),
           amount: amountNum,
           money_type: form.money_type,
+          is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
           notes: form.notes.trim() || null,
           reference_id: form.reference_id.trim() || null,
         });
@@ -144,6 +147,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           description: '',
           amount: '',
           money_type: 'Cash',
+          is_handed_over: true,
           notes: '',
           reference_id: '',
         });
@@ -299,6 +303,24 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
               </Select>
             </div>
           </div>
+
+          {form.money_type === 'Cash' && (
+            <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+              <div className="space-y-0.5 pr-2">
+                <Label htmlFor="inc-handed-over" className="text-xs font-semibold text-foreground cursor-pointer">
+                  Cash Handed Over to Finance?
+                </Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Toggle ON if cash is currently in hand with finance team. Toggle OFF if cash is still with volunteer.
+                </p>
+              </div>
+              <Switch
+                id="inc-handed-over"
+                checked={form.is_handed_over}
+                onCheckedChange={(checked) => set('is_handed_over', checked)}
+              />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="inc-reference">Reference ID (PCOM-XXXX or FC-XXXX)</Label>

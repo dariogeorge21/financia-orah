@@ -105,6 +105,47 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.advance_amount !== undefined) {
+      updatePayload.advance_amount =
+        body.advance_amount !== null && !isNaN(Number(body.advance_amount))
+          ? Number(body.advance_amount)
+          : null;
+    }
+
+    if (body.advance_money_type !== undefined) {
+      updatePayload.advance_money_type =
+        body.advance_money_type && ['Cash', 'UPI'].includes(body.advance_money_type)
+          ? (body.advance_money_type as MoneyType)
+          : null;
+    }
+
+    if (body.settlement_status !== undefined) {
+      if (!['Direct', 'Advance Given', 'Settled'].includes(body.settlement_status)) {
+        return NextResponse.json({ success: false, error: 'Invalid settlement status.' }, { status: 400 });
+      }
+      updatePayload.settlement_status = body.settlement_status as string;
+    }
+
+    if (body.balance_amount !== undefined) {
+      updatePayload.balance_amount =
+        body.balance_amount !== null && !isNaN(Number(body.balance_amount))
+          ? Number(body.balance_amount)
+          : 0;
+    }
+
+    if (body.balance_money_type !== undefined) {
+      updatePayload.balance_money_type =
+        body.balance_money_type && ['Cash', 'UPI'].includes(body.balance_money_type)
+          ? (body.balance_money_type as MoneyType)
+          : null;
+    }
+
+    if (body.settled_at !== undefined) {
+      updatePayload.settled_at = body.settled_at;
+    } else if (body.settlement_status === 'Settled') {
+      updatePayload.settled_at = new Date().toISOString();
+    }
+
     if (Object.keys(updatePayload).length === 0) {
       return NextResponse.json({ success: false, error: 'No valid fields provided for update.' }, { status: 400 });
     }

@@ -12,6 +12,7 @@ import type {
   IncomeSummary,
   CommitmentSummary,
   FinanceCallSummary,
+  AdvanceSummary,
   BudgetRow,
 } from './types';
 
@@ -23,9 +24,73 @@ export function isEventExpense(source: string): boolean {
 }
 
 /**
+ * Calculates net Cash spent/outflow for an approved event expense,
+ * accounting for direct expenses, active advances, and settled advances with multi-mode refunds/payouts.
+ */
+export function calcExpenseCashImpact(expense: ExpenseRecord): number {
+  if (expense.status !== 'Approved' || !isEventExpense(expense.payment_source)) {
+    return 0;
+  }
+
+  const status = expense.settlement_status || 'Direct';
+
+  if (status === 'Advance Given') {
+    const advType = expense.advance_money_type || expense.money_type;
+    return advType === 'Cash' ? Number(expense.advance_amount ?? expense.amount) : 0;
+  }
+
+  if (status === 'Settled') {
+    const advAmt = Number(expense.advance_amount ?? expense.amount);
+    const advType = expense.advance_money_type || expense.money_type;
+    const balAmt = Number(expense.balance_amount ?? (Number(expense.amount) - advAmt));
+    const balType = expense.balance_money_type || advType;
+
+    let cashOutflow = 0;
+    if (advType === 'Cash') cashOutflow += advAmt;
+    if (balType === 'Cash') cashOutflow += balAmt; // If balAmt is negative (refund), reduces cash outflow
+    return cashOutflow;
+  }
+
+  // Direct standard expense
+  return expense.money_type === 'Cash' ? Number(expense.amount) : 0;
+}
+
+/**
+ * Calculates net UPI spent/outflow for an approved event expense,
+ * accounting for direct expenses, active advances, and settled advances with multi-mode refunds/payouts.
+ */
+export function calcExpenseUpiImpact(expense: ExpenseRecord): number {
+  if (expense.status !== 'Approved' || !isEventExpense(expense.payment_source)) {
+    return 0;
+  }
+
+  const status = expense.settlement_status || 'Direct';
+
+  if (status === 'Advance Given') {
+    const advType = expense.advance_money_type || expense.money_type;
+    return advType === 'UPI' ? Number(expense.advance_amount ?? expense.amount) : 0;
+  }
+
+  if (status === 'Settled') {
+    const advAmt = Number(expense.advance_amount ?? expense.amount);
+    const advType = expense.advance_money_type || expense.money_type;
+    const balAmt = Number(expense.balance_amount ?? (Number(expense.amount) - advAmt));
+    const balType = expense.balance_money_type || advType;
+
+    let upiOutflow = 0;
+    if (advType === 'UPI') upiOutflow += advAmt;
+    if (balType === 'UPI') upiOutflow += balAmt; // If balAmt is negative (refund), reduces UPI outflow
+    return upiOutflow;
+  }
+
+  // Direct standard expense
+  return expense.money_type === 'UPI' ? Number(expense.amount) : 0;
+}
+
+/**
  * Cash Available =
  *   SUM(Income where money_type=Cash)
- *   - SUM(Expenses where money_type=Cash AND source is Event AND status=Approved)
+ *   - SUM(Cash outflow from Expenses: Direct + Advances + Settled Adjustments)
  *   - SUM(Reimbursements where money_type_paid=Cash AND status=Paid)
  */
 export function calcMoneyPosition(
@@ -45,13 +110,8 @@ export function calcMoneyPosition(
     .filter((i) => i.money_type === 'UPI')
     .reduce((s, i) => s + Number(i.amount), 0);
 
-  const cashExpenses = expenses
-    .filter((e) => e.money_type === 'Cash' && isEventExpense(e.payment_source) && e.status === 'Approved')
-    .reduce((s, e) => s + Number(e.amount), 0);
-
-  const upiExpenses = expenses
-    .filter((e) => e.money_type === 'UPI' && isEventExpense(e.payment_source) && e.status === 'Approved')
-    .reduce((s, e) => s + Number(e.amount), 0);
+  const cashExpenses = expenses.reduce((s, e) => s + calcExpenseCashImpact(e), 0);
+  const upiExpenses = expenses.reduce((s, e) => s + calcExpenseUpiImpact(e), 0);
 
   const cashReimb = reimbursements
     .filter((r) => r.money_type_paid === 'Cash' && r.status === 'Paid')
@@ -72,6 +132,34 @@ export function calcMoneyPosition(
     totalCash,
     upiAvailable,
     total: cashAvailable + upiAvailable,
+  };
+}
+
+/**
+ * Summary of all volunteer advance disbursements and settlements
+ */
+export function calcAdvancesSummary(expenses: ExpenseRecord[]): AdvanceSummary {
+  const activeAdvances = expenses.filter(
+    (e) => e.settlement_status === 'Advance Given' && e.status !== 'Rejected'
+  );
+  const settledAdvances = expenses.filter(
+    (e) => e.settlement_status === 'Settled' && e.status !== 'Rejected'
+  );
+
+  const totalAdvanceDisbursed = [...activeAdvances, ...settledAdvances].reduce(
+    (s, e) => s + Number(e.advance_amount ?? e.amount),
+    0
+  );
+  const totalPendingSettlement = activeAdvances.reduce(
+    (s, e) => s + Number(e.advance_amount ?? e.amount),
+    0
+  );
+
+  return {
+    totalAdvanceDisbursed,
+    totalPendingSettlement,
+    pendingCount: activeAdvances.length,
+    settledCount: settledAdvances.length,
   };
 }
 

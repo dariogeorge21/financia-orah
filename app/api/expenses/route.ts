@@ -39,6 +39,15 @@ export async function GET() {
       .filter((e) => !isEventExpense(e.payment_source) && e.status === 'Approved')
       .reduce((s, e) => s + Number(e.amount), 0);
 
+    const activeAdvances = expenses.filter(
+      (e) => e.settlement_status === 'Advance Given' && e.status !== 'Rejected'
+    );
+    const activeAdvancesCount = activeAdvances.length;
+    const totalAdvancesPending = activeAdvances.reduce(
+      (s, e) => s + Number(e.advance_amount ?? e.amount),
+      0
+    );
+
     return NextResponse.json({
       success: true,
       data: {
@@ -53,6 +62,8 @@ export async function GET() {
           approvedCount: expenses.filter((e) => e.status === 'Approved').length,
           pendingCount: expenses.filter((e) => e.status === 'Pending').length,
           rejectedCount: expenses.filter((e) => e.status === 'Rejected').length,
+          activeAdvancesCount,
+          totalAdvancesPending,
         },
       },
     });
@@ -86,6 +97,24 @@ export async function POST(request: Request) {
     const hasReceipt = Boolean(body.has_receipt);
     const receiptLink = typeof body.receipt_link === 'string' ? body.receipt_link.trim() : null;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
+
+    // Advance & Settlement fields
+    const advanceAmount = body.advance_amount !== undefined && body.advance_amount !== null
+      ? Number(body.advance_amount)
+      : null;
+    const advanceMoneyType = body.advance_money_type && ['Cash', 'UPI'].includes(body.advance_money_type)
+      ? (body.advance_money_type as MoneyType)
+      : null;
+    const settlementStatus = body.settlement_status && ['Direct', 'Advance Given', 'Settled'].includes(body.settlement_status)
+      ? body.settlement_status
+      : (advanceAmount !== null && advanceAmount > 0 ? 'Advance Given' : 'Direct');
+    const balanceAmount = body.balance_amount !== undefined && body.balance_amount !== null
+      ? Number(body.balance_amount)
+      : 0;
+    const balanceMoneyType = body.balance_money_type && ['Cash', 'UPI'].includes(body.balance_money_type)
+      ? (body.balance_money_type as MoneyType)
+      : null;
+    const settledAt = body.settled_at || (settlementStatus === 'Settled' ? new Date().toISOString() : null);
 
     if (!category) {
       return NextResponse.json({ success: false, error: 'Category is required.' }, { status: 400 });
@@ -132,22 +161,30 @@ export async function POST(request: Request) {
 
     const nextId = `EXP-${String(maxNum + 1).padStart(4, '0')}`;
 
+    const insertPayload: Record<string, unknown> = {
+      id: nextId,
+      category,
+      description,
+      amount,
+      money_type: moneyType,
+      paid_by: paidBy,
+      mobile_number: mobileNumber || null,
+      payment_source: paymentSource,
+      status,
+      has_receipt: hasReceipt,
+      receipt_link: receiptLink || null,
+      notes: notes || null,
+      advance_amount: advanceAmount,
+      advance_money_type: advanceMoneyType,
+      settlement_status: settlementStatus,
+      balance_amount: balanceAmount,
+      balance_money_type: balanceMoneyType,
+      settled_at: settledAt,
+    };
+
     const { data: newExpense, error: insertError } = await supabase
       .from('expenses')
-      .insert({
-        id: nextId,
-        category,
-        description,
-        amount,
-        money_type: moneyType,
-        paid_by: paidBy,
-        mobile_number: mobileNumber || null,
-        payment_source: paymentSource,
-        status,
-        has_receipt: hasReceipt,
-        receipt_link: receiptLink || null,
-        notes: notes || null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
 

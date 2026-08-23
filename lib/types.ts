@@ -34,6 +34,7 @@ export type PaymentSource = 'Personal' | 'Event' | 'Personal Money' | 'Event Mon
 export type ExpenseStatus = 'Pending' | 'Approved' | 'Rejected';
 export type CommitmentStatus = 'Pending' | 'Partially Received' | 'Fully Received' | 'Cancelled';
 export type ReimbursementStatus = 'Pending' | 'Paid';
+export type SettlementStatus = 'Direct' | 'Advance Given' | 'Settled';
 
 export interface IncomeRecord {
   id: string;
@@ -128,6 +129,14 @@ export interface ExpenseRecord {
   receipt_link?: string | null;
   notes?: string | null;
   created_at?: string;
+
+  // Advance disbursement & multi-channel settlement tracking
+  advance_amount?: number | null;
+  advance_money_type?: MoneyType | null;
+  settlement_status?: SettlementStatus | null;
+  balance_amount?: number | null;
+  balance_money_type?: MoneyType | null;
+  settled_at?: string | null;
 }
 
 export interface BudgetCategory {
@@ -180,6 +189,13 @@ export interface FinanceCallSummary {
   totalPending: number;
   fullyReceivedCount: number;
   pendingCount: number;
+}
+
+export interface AdvanceSummary {
+  totalAdvanceDisbursed: number;
+  totalPendingSettlement: number;
+  pendingCount: number;
+  settledCount: number;
 }
 
 export interface BudgetRow extends BudgetCategory {

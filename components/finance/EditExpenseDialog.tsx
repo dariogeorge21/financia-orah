@@ -22,7 +22,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { updateExpense } from '@/features/expenses';
 import { formatINR, calcMoneyPosition, isEventExpense } from '@/lib/calculations';
-import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus, MoneyPosition } from '@/lib/types';
+import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus, SettlementStatus, MoneyPosition } from '@/lib/types';
 
 const CATEGORIES = [
   'Food',
@@ -86,6 +86,11 @@ export function EditExpenseDialog({
     mobile_number: '',
     payment_source: 'Event' as PaymentSource,
     status: 'Approved' as ExpenseStatus,
+    settlement_status: 'Direct' as SettlementStatus,
+    advance_amount: '',
+    advance_money_type: 'Cash' as MoneyType,
+    balance_amount: '0',
+    balance_money_type: 'Cash' as MoneyType,
     receipt_link: '',
     notes: '',
   });
@@ -108,36 +113,29 @@ export function EditExpenseDialog({
         'Miscellaneous',
       ];
 
-      if (expense.category && !standardCategories.includes(expense.category)) {
-        setForm({
-          category: 'Other',
-          description: expense.description || '',
-          amount: String(expense.amount ?? 0),
-          money_type: expense.money_type || 'Cash',
-          paid_by: expense.paid_by || '',
-          mobile_number: expense.mobile_number || '',
-          payment_source: (expense.payment_source as PaymentSource) || 'Event',
-          status: expense.status || 'Approved',
-          receipt_link: expense.receipt_link || '',
-          notes: expense.notes || '',
-        });
-        setOtherCategory(expense.category === 'Other' ? '' : expense.category);
-      } else {
-        setForm({
-          category: expense.category || '',
-          description: expense.description || '',
-          amount: String(expense.amount ?? 0),
-          money_type: expense.money_type || 'Cash',
-          paid_by: expense.paid_by || '',
-          mobile_number: expense.mobile_number || '',
-          payment_source: (expense.payment_source as PaymentSource) || 'Event',
-          status: expense.status || 'Approved',
-          receipt_link: expense.receipt_link || '',
-          notes: expense.notes || '',
-        });
-        setOtherCategory('');
-      }
+      const isOther = expense.category && !standardCategories.includes(expense.category);
 
+      setForm({
+        category: isOther ? 'Other' : expense.category || '',
+        description: expense.description || '',
+        amount: String(expense.amount ?? 0),
+        money_type: expense.money_type || 'Cash',
+        paid_by: expense.paid_by || '',
+        mobile_number: expense.mobile_number || '',
+        payment_source: (expense.payment_source as PaymentSource) || 'Event',
+        status: expense.status || 'Approved',
+        settlement_status: (expense.settlement_status as SettlementStatus) || 'Direct',
+        advance_amount: expense.advance_amount !== null && expense.advance_amount !== undefined
+          ? String(expense.advance_amount)
+          : '',
+        advance_money_type: (expense.advance_money_type as MoneyType) || expense.money_type || 'Cash',
+        balance_amount: String(expense.balance_amount ?? 0),
+        balance_money_type: (expense.balance_money_type as MoneyType) || expense.money_type || 'Cash',
+        receipt_link: expense.receipt_link || '',
+        notes: expense.notes || '',
+      });
+
+      setOtherCategory(isOther && expense.category !== 'Other' ? expense.category : '');
       setHasReceipt(Boolean(expense.has_receipt));
       setError(null);
     }
@@ -191,6 +189,9 @@ export function EditExpenseDialog({
       return;
     }
 
+    const advNum = form.advance_amount ? parseFloat(form.advance_amount) : null;
+    const balNum = form.balance_amount ? parseFloat(form.balance_amount) : 0;
+
     startTransition(async () => {
       try {
         await updateExpense(expense.id, {
@@ -202,6 +203,11 @@ export function EditExpenseDialog({
           mobile_number: form.mobile_number.trim() || null,
           payment_source: form.payment_source,
           status: form.status,
+          settlement_status: form.settlement_status,
+          advance_amount: advNum,
+          advance_money_type: form.advance_money_type,
+          balance_amount: balNum,
+          balance_money_type: form.balance_money_type,
           has_receipt: hasReceipt,
           receipt_link: form.receipt_link.trim() || null,
           notes: form.notes.trim() || null,
@@ -217,11 +223,11 @@ export function EditExpenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Expense ({expense.id})</DialogTitle>
           <DialogDescription>
-            Update expenditure record and status via server API.
+            Update expenditure record, settlement status, and balances via server API.
           </DialogDescription>
         </DialogHeader>
 
@@ -270,6 +276,63 @@ export function EditExpenseDialog({
             </div>
           )}
 
+          {/* Settlement Status Selector */}
+          <div className="space-y-1.5 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <Label htmlFor="edit-exp-settlement-status" className="text-xs font-semibold">
+              Advance & Settlement Tracking
+            </Label>
+            <Select
+              value={form.settlement_status}
+              onValueChange={(v) => set('settlement_status', v ?? 'Direct')}
+            >
+              <SelectTrigger id="edit-exp-settlement-status" className="text-xs h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Direct">Direct Expense (Standard / No Advance)</SelectItem>
+                <SelectItem value="Advance Given">Advance Given (Pending Final Bill)</SelectItem>
+                <SelectItem value="Settled">Settled (Reconciled & Balanced)</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {form.settlement_status !== 'Direct' && (
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 text-xs">
+                <div>
+                  <Label htmlFor="edit-advance-amount" className="text-[11px]">
+                    Advance Amount (₹)
+                  </Label>
+                  <Input
+                    id="edit-advance-amount"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.advance_amount}
+                    onChange={(e) => set('advance_amount', e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="Advance amount"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-advance-type" className="text-[11px]">
+                    Advance Mode
+                  </Label>
+                  <Select
+                    value={form.advance_money_type}
+                    onValueChange={(v) => set('advance_money_type', v ?? 'Cash')}
+                  >
+                    <SelectTrigger id="edit-advance-type" className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">Cash</SelectItem>
+                      <SelectItem value="UPI">UPI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="edit-exp-desc">Description</Label>
             <Input
@@ -282,7 +345,7 @@ export function EditExpenseDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-exp-paid-by">Paid By</Label>
+              <Label htmlFor="edit-exp-paid-by">Paid By / Volunteer</Label>
               <Input
                 id="edit-exp-paid-by"
                 value={form.paid_by}
@@ -304,7 +367,9 @@ export function EditExpenseDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="edit-exp-amount">Amount (₹)</Label>
+                <Label htmlFor="edit-exp-amount">
+                  {form.settlement_status === 'Advance Given' ? 'Amount (₹)' : 'Actual Amount (₹)'}
+                </Label>
                 {form.amount && !isNaN(parseFloat(form.amount)) && (
                   <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
                     {formatINR(parseFloat(form.amount))}
@@ -365,7 +430,9 @@ export function EditExpenseDialog({
                 <span>Warning: Insufficient {form.money_type} Balance</span>
               </div>
               <p className="leading-relaxed">
-                Your current <strong className="font-semibold">{form.money_type}</strong> balance of <strong className="font-semibold text-foreground">{formatINR(beforeAmount)}</strong> will become negative: <strong className="font-bold text-rose-600 dark:text-rose-400">{formatINR(afterAmount)}</strong> after updating this expense.
+                Your current <strong className="font-semibold">{form.money_type}</strong> balance of{' '}
+                <strong className="font-semibold text-foreground">{formatINR(beforeAmount)}</strong> will become negative:{' '}
+                <strong className="font-bold text-rose-600 dark:text-rose-400">{formatINR(afterAmount)}</strong> after updating this expense.
               </p>
             </div>
           )}

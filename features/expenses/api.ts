@@ -1,7 +1,7 @@
 // features/expenses/api.ts
 // Client-side API functions for interacting with the /api/expenses endpoints
 
-import type { ExpenseRecord, ExpenseStatus, PaymentSource, MoneyType } from '@/lib/types';
+import type { ExpenseRecord, ExpenseStatus, PaymentSource, MoneyType, SettlementStatus } from '@/lib/types';
 
 export interface ExpenseSummary {
   totalApproved: number;
@@ -13,6 +13,8 @@ export interface ExpenseSummary {
   approvedCount: number;
   pendingCount: number;
   rejectedCount: number;
+  activeAdvancesCount?: number;
+  totalAdvancesPending?: number;
 }
 
 export interface ExpenseApiResponse {
@@ -44,6 +46,12 @@ export interface CreateExpenseInput {
   has_receipt?: boolean;
   receipt_link?: string | null;
   notes?: string | null;
+  advance_amount?: number | null;
+  advance_money_type?: MoneyType | null;
+  settlement_status?: SettlementStatus | null;
+  balance_amount?: number | null;
+  balance_money_type?: MoneyType | null;
+  settled_at?: string | null;
 }
 
 export interface UpdateExpenseInput {
@@ -58,6 +66,12 @@ export interface UpdateExpenseInput {
   has_receipt?: boolean;
   receipt_link?: string | null;
   notes?: string | null;
+  advance_amount?: number | null;
+  advance_money_type?: MoneyType | null;
+  settlement_status?: SettlementStatus | null;
+  balance_amount?: number | null;
+  balance_money_type?: MoneyType | null;
+  settled_at?: string | null;
 }
 
 /**
@@ -140,4 +154,33 @@ export async function deleteExpense(id: string): Promise<{ success: boolean; mes
   }
 
   return json;
+}
+
+export interface SettleExpenseInput {
+  actual_amount: number;
+  balance_money_type?: MoneyType | null;
+  has_receipt?: boolean;
+  receipt_link?: string | null;
+  notes?: string | null;
+}
+
+/**
+ * Reconciles an active advance with the actual purchase bill, balance refund/payment, and marks it Settled.
+ */
+export async function settleExpense(
+  id: string,
+  input: SettleExpenseInput,
+  currentAdvance: number
+): Promise<ExpenseMutationResponse> {
+  const balance_amount = input.actual_amount - currentAdvance;
+  return updateExpense(id, {
+    amount: input.actual_amount,
+    settlement_status: 'Settled',
+    balance_amount,
+    balance_money_type: input.balance_money_type || null,
+    has_receipt: input.has_receipt,
+    receipt_link: input.receipt_link,
+    notes: input.notes,
+    settled_at: new Date().toISOString(),
+  });
 }

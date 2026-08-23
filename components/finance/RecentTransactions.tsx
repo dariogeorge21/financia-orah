@@ -63,7 +63,15 @@ export function RecentTransactions({ income, expenses }: Props) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{exp.description}</p>
-                  <p className="text-xs text-muted-foreground">{exp.category} · {exp.money_type}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {exp.category} · {exp.money_type}
+                    {exp.settlement_status === 'Advance Given' && (
+                      <span className="text-amber-600 dark:text-amber-400 font-medium ml-1">· ⏳ Advance</span>
+                    )}
+                    {exp.settlement_status === 'Settled' && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium ml-1">· ✓ Settled</span>
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">

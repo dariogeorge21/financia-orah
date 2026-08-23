@@ -47,30 +47,40 @@ interface AddExpenseDialogProps {
   onSuccess?: () => void;
   trigger?: React.ReactElement;
   moneyPosition?: MoneyPosition;
+  defaultMode?: 'direct' | 'advance';
 }
 
-export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpenseDialogProps) {
+export function AddExpenseDialog({
+  onSuccess,
+  trigger,
+  moneyPosition,
+  defaultMode = 'direct',
+}: AddExpenseDialogProps) {
   const { notifyTransaction } = useBalanceNotification();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hasReceipt, setHasReceipt] = useState(false);
   const [livePosition, setLivePosition] = useState<MoneyPosition | null>(null);
+  const [entryMode, setEntryMode] = useState<'direct' | 'advance'>(defaultMode);
 
   useEffect(() => {
-    if (open && !moneyPosition) {
-      Promise.all([
-        fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
-        fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
-        fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
-      ]).then(([incRes, expRes, reimbRes]) => {
-        const incList = incRes.data?.income ?? [];
-        const expList = expRes.data?.expenses ?? [];
-        const reimbList = reimbRes.data?.reimbursements ?? [];
-        setLivePosition(calcMoneyPosition(incList, expList, reimbList));
-      });
+    if (open) {
+      setEntryMode(defaultMode);
+      if (!moneyPosition) {
+        Promise.all([
+          fetch('/api/income').then((r) => r.json()).catch(() => ({ data: { income: [] } })),
+          fetch('/api/expenses').then((r) => r.json()).catch(() => ({ data: { expenses: [] } })),
+          fetch('/api/reimbursements').then((r) => r.json()).catch(() => ({ data: { reimbursements: [] } })),
+        ]).then(([incRes, expRes, reimbRes]) => {
+          const incList = incRes.data?.income ?? [];
+          const expList = expRes.data?.expenses ?? [];
+          const reimbList = reimbRes.data?.reimbursements ?? [];
+          setLivePosition(calcMoneyPosition(incList, expList, reimbList));
+        });
+      }
     }
-  }, [open, moneyPosition]);
+  }, [open, moneyPosition, defaultMode]);
 
   const [form, setForm] = useState({
     category: '',
@@ -110,7 +120,7 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
     }
 
     if (!finalCategory || !form.money_type || !form.paid_by) {
-      setError('Please fill all required fields (Category, Paid By, Money Type).');
+      setError('Please fill all required fields (Category, Volunteer / Paid By, Money Type).');
       return;
     }
 
@@ -122,30 +132,63 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
 
     startTransition(async () => {
       try {
-        await createExpense({
-          category: finalCategory,
-          description: form.description.trim(),
-          amount: amountNum,
-          money_type: form.money_type,
-          paid_by: form.paid_by.trim(),
-          mobile_number: form.mobile_number.trim() || null,
-          payment_source: form.payment_source,
-          status: form.status,
-          has_receipt: hasReceipt,
-          receipt_link: form.receipt_link.trim() || null,
-          notes: form.notes.trim() || null,
-        });
+        if (entryMode === 'advance') {
+          // Handover advance to volunteer
+          await createExpense({
+            category: finalCategory,
+            description: form.description.trim(),
+            amount: amountNum,
+            money_type: form.money_type,
+            paid_by: form.paid_by.trim(),
+            mobile_number: form.mobile_number.trim() || null,
+            payment_source: 'Event',
+            status: 'Approved',
+            has_receipt: hasReceipt,
+            receipt_link: form.receipt_link.trim() || null,
+            notes: form.notes.trim() || null,
+            advance_amount: amountNum,
+            advance_money_type: form.money_type,
+            settlement_status: 'Advance Given',
+          });
 
-        notifyTransaction({
-          type: 'expense',
-          title: 'Expense Recorded',
-          description: `${finalCategory} • ${form.description || form.paid_by}`,
-          moneyType: form.money_type,
-          beforeAmount,
-          deltaAmount: amountNum,
-          afterAmount,
-          durationMs: 3000,
-        });
+          notifyTransaction({
+            type: 'expense',
+            title: 'Advance Disbursed',
+            description: `${finalCategory} • Handed over to ${form.paid_by}`,
+            moneyType: form.money_type,
+            beforeAmount,
+            deltaAmount: amountNum,
+            afterAmount,
+            durationMs: 3500,
+          });
+        } else {
+          // Direct Standard Expense
+          await createExpense({
+            category: finalCategory,
+            description: form.description.trim(),
+            amount: amountNum,
+            money_type: form.money_type,
+            paid_by: form.paid_by.trim(),
+            mobile_number: form.mobile_number.trim() || null,
+            payment_source: form.payment_source,
+            status: form.status,
+            has_receipt: hasReceipt,
+            receipt_link: form.receipt_link.trim() || null,
+            notes: form.notes.trim() || null,
+            settlement_status: 'Direct',
+          });
+
+          notifyTransaction({
+            type: 'expense',
+            title: 'Expense Recorded',
+            description: `${finalCategory} • ${form.description || form.paid_by}`,
+            moneyType: form.money_type,
+            beforeAmount,
+            deltaAmount: amountNum,
+            afterAmount,
+            durationMs: 3000,
+          });
+        }
 
         setOpen(false);
         setForm({
@@ -199,11 +242,42 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
       />
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Add Expense</DialogTitle>
+          <DialogTitle>
+            {entryMode === 'advance' ? 'Disburse Volunteer Advance' : 'Record Direct Expense'}
+          </DialogTitle>
           <DialogDescription>
-            Record a new expenditure item for the event via server API.
+            {entryMode === 'advance'
+              ? 'Hand over rough amount to volunteer before purchase. Settle bill and balance later.'
+              : 'Record an actual expenditure item or vendor payment for the event.'}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Mode Toggle Pills */}
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 text-xs border border-border/40 mt-1">
+          <button
+            type="button"
+            onClick={() => setEntryMode('direct')}
+            className={`rounded-lg py-1.5 font-medium transition-all ${
+              entryMode === 'direct'
+                ? 'bg-card text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Direct Expense
+          </button>
+          <button
+            type="button"
+            onClick={() => setEntryMode('advance')}
+            className={`rounded-lg py-1.5 font-medium transition-all ${
+              entryMode === 'advance'
+                ? 'bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-300 shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            ⏳ Disburse Advance
+          </button>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -221,19 +295,29 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="exp-status">Status</Label>
-              <Select value={form.status} onValueChange={(v) => set('status', v ?? '')}>
-                <SelectTrigger id="exp-status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            {entryMode === 'direct' ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="exp-status">Status</Label>
+                <Select value={form.status} onValueChange={(v) => set('status', v ?? '')}>
+                  <SelectTrigger id="exp-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Approved">Approved</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Settlement Flow</Label>
+                <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-800 dark:text-amber-300 font-medium">
+                  ⏳ Pending Settlement
+                </div>
+              </div>
+            )}
           </div>
 
           {form.category === 'Other' && (
@@ -250,10 +334,16 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="exp-desc">Description</Label>
+            <Label htmlFor="exp-desc">
+              {entryMode === 'advance' ? 'Purpose of Advance' : 'Description'}
+            </Label>
             <Input
               id="exp-desc"
-              placeholder="What was this for?"
+              placeholder={
+                entryMode === 'advance'
+                  ? 'e.g. Purchasing chart papers, food for volunteers, cab fare...'
+                  : 'What was this for?'
+              }
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
               required
@@ -262,10 +352,12 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="exp-paid-by">Paid By</Label>
+              <Label htmlFor="exp-paid-by">
+                {entryMode === 'advance' ? 'Volunteer Name (Handed To)' : 'Paid By'}
+              </Label>
               <Input
                 id="exp-paid-by"
-                placeholder="Person / Treasurer"
+                placeholder="Volunteer / Member name"
                 value={form.paid_by}
                 onChange={(e) => set('paid_by', e.target.value)}
                 required
@@ -286,7 +378,9 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="exp-amount">Amount (₹)</Label>
+                <Label htmlFor="exp-amount">
+                  {entryMode === 'advance' ? 'Advance Amount (₹)' : 'Amount (₹)'}
+                </Label>
                 {form.amount && !isNaN(parseFloat(form.amount)) && (
                   <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
                     {formatINR(parseFloat(form.amount))}
@@ -306,7 +400,9 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
             </div>
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <Label htmlFor="exp-money-type">Money Type</Label>
+                <Label htmlFor="exp-money-type">
+                  {entryMode === 'advance' ? 'Handover Mode' : 'Money Type'}
+                </Label>
                 {livePosition && (
                   <span className="text-[11px] text-muted-foreground font-medium">
                     Avail: {formatINR(form.money_type === 'Cash' ? currentCash : currentUpi)}
@@ -348,23 +444,27 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
                 <span>Warning: Insufficient {form.money_type} Balance</span>
               </div>
               <p className="leading-relaxed">
-                Your current <strong className="font-semibold">{form.money_type}</strong> balance of <strong className="font-semibold text-foreground">{formatINR(beforeAmount)}</strong> will become negative: <strong className="font-bold text-rose-600 dark:text-rose-400">{formatINR(afterAmount)}</strong> after recording this expense.
+                Your current <strong className="font-semibold">{form.money_type}</strong> balance of{' '}
+                <strong className="font-semibold text-foreground">{formatINR(beforeAmount)}</strong> will become negative:{' '}
+                <strong className="font-bold text-rose-600 dark:text-rose-400">{formatINR(afterAmount)}</strong> after disbursing this.
               </p>
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="exp-source">Payment Source</Label>
-            <Select value={form.payment_source} onValueChange={(v) => set('payment_source', v ?? '')}>
-              <SelectTrigger id="exp-source">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Event">Event (Direct from Event balance)</SelectItem>
-                <SelectItem value="Personal">Personal (Paid from pocket - needs reimbursement)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {entryMode === 'direct' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="exp-source">Payment Source</Label>
+              <Select value={form.payment_source} onValueChange={(v) => set('payment_source', v ?? '')}>
+                <SelectTrigger id="exp-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Event">Event (Direct from Event balance)</SelectItem>
+                  <SelectItem value="Personal">Personal (Paid from pocket - needs reimbursement)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <Switch id="exp-receipt" checked={hasReceipt} onCheckedChange={setHasReceipt} />
@@ -387,7 +487,11 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
             <Label htmlFor="exp-notes">Notes</Label>
             <Textarea
               id="exp-notes"
-              placeholder="Optional notes..."
+              placeholder={
+                entryMode === 'advance'
+                  ? 'e.g. Handed cash to volunteer desk, will return change with bill.'
+                  : 'Optional notes...'
+              }
               value={form.notes}
               onChange={(e) => set('notes', e.target.value)}
               rows={2}
@@ -408,9 +512,17 @@ export function AddExpenseDialog({ onSuccess, trigger, moneyPosition }: AddExpen
             <Button
               type="submit"
               disabled={isPending}
-              className="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white"
+              className={
+                entryMode === 'advance'
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white'
+                  : 'bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white'
+              }
             >
-              {isPending ? 'Saving to Server…' : 'Add Expense'}
+              {isPending
+                ? 'Saving to Server…'
+                : entryMode === 'advance'
+                ? `Disburse Advance (${formatINR(enteredAmount || 0)})`
+                : 'Add Expense'}
             </Button>
           </div>
         </form>

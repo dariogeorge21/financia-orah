@@ -13,28 +13,44 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface QrCodeItem {
+export interface QrCodeItem {
   id: string;
   filename: string;
   src: string;
   name: string;
 }
 
-export function QuickQrDialog() {
+interface QuickQrDialogProps {
+  initialQrCodes?: QrCodeItem[];
+}
+
+export function QuickQrDialog({ initialQrCodes = [] }: QuickQrDialogProps) {
   const [open, setOpen] = useState(false);
-  const [qrCodes, setQrCodes] = useState<QrCodeItem[]>([]);
+  const [qrCodes, setQrCodes] = useState<QrCodeItem[]>(initialQrCodes);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper to preload images in browser memory
+  const preloadImages = useCallback((items: QrCodeItem[]) => {
+    if (typeof window === 'undefined') return;
+    items.forEach((item) => {
+      const img = new Image();
+      img.src = item.src;
+    });
+  }, []);
+
   const fetchQrCodes = useCallback(async () => {
-    setLoading(true);
+    if (qrCodes.length === 0) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const res = await fetch('/api/qr-codes');
       const json = await res.json();
       if (json.success && Array.isArray(json.qrCodes)) {
         setQrCodes(json.qrCodes);
+        preloadImages(json.qrCodes);
         if (currentIndex >= json.qrCodes.length) {
           setCurrentIndex(0);
         }
@@ -44,13 +60,17 @@ export function QuickQrDialog() {
     } finally {
       setLoading(false);
     }
-  }, [currentIndex]);
+  }, [currentIndex, qrCodes.length, preloadImages]);
 
+  // Eager preloading on page load
   useEffect(() => {
-    if (open) {
+    if (initialQrCodes.length > 0) {
+      preloadImages(initialQrCodes);
+    } else {
+      // Background load immediately on page load
       fetchQrCodes();
     }
-  }, [open, fetchQrCodes]);
+  }, [initialQrCodes, preloadImages, fetchQrCodes]);
 
   const handlePrev = useCallback(() => {
     if (qrCodes.length <= 1) return;
@@ -177,7 +197,7 @@ export function QuickQrDialog() {
           </div>
         </DialogHeader>
 
-        {loading ? (
+        {loading && qrCodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 space-y-3">
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-xs text-muted-foreground">Loading QR codes…</p>
@@ -277,6 +297,7 @@ export function QuickQrDialog() {
                   alt={activeQr.name}
                   className="h-full w-full object-contain rounded-xl select-none"
                   draggable={false}
+                  loading="eager"
                 />
               </div>
 

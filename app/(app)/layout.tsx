@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppSidebar } from '@/components/finance/AppSidebar';
 import { ThemeToggle } from '@/components/finance/ThemeToggle';
 import { QuickQrDialog } from '@/components/finance/QuickQrDialog';
+import { getLocalQrCodes } from '@/lib/qr';
 import {
   SidebarInset,
   SidebarProvider,
@@ -22,6 +23,8 @@ export default async function AppLayout({
     redirect('/login');
   }
 
+  const initialQrCodes = getLocalQrCodes();
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -38,7 +41,7 @@ export default async function AppLayout({
               <span className="hidden text-xs text-muted-foreground sm:block">
                 {user.email}
               </span>
-              <QuickQrDialog />
+              <QuickQrDialog initialQrCodes={initialQrCodes} />
               <ThemeToggle />
             </div>
           </div>

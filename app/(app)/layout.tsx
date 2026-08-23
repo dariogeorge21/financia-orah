@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { AppSidebar } from '@/components/finance/AppSidebar';
 import { ThemeToggle } from '@/components/finance/ThemeToggle';
+import { QuickQrDialog } from '@/components/finance/QuickQrDialog';
 import {
   SidebarInset,
   SidebarProvider,
@@ -37,6 +38,7 @@ export default async function AppLayout({
               <span className="hidden text-xs text-muted-foreground sm:block">
                 {user.email}
               </span>
+              <QuickQrDialog />
               <ThemeToggle />
             </div>
           </div>

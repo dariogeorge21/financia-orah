@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddChurchDonationDialog } from './AddChurchDonationDialog';
+import { AddChurchDonationDialog } from './Church/AddChurchDonationDialog';
 import { EditChurchDonationDialog } from './EditChurchDonationDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

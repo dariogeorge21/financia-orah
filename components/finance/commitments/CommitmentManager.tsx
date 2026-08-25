@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddPersonalCommitmentDialog } from './AddPersonalCommitmentDialog';
+import { AddPersonalCommitmentDialog } from './commitments/AddPersonalCommitmentDialog';
 import { EditCommitmentDialog } from './EditCommitmentDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

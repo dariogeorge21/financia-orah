@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddExpenseDialog } from './AddExpenseDialog';
+import { AddExpenseDialog } from './expense/AddExpenseDialog';
 import { EditExpenseDialog } from './EditExpenseDialog';
 import { SettleExpenseDialog } from './SettleExpenseDialog';
 import { ViewModeToggle } from './ViewModeToggle';

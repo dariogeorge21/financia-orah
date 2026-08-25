@@ -22,7 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { createIncome } from '@/features/income';
-import { formatINR, calcMoneyPosition } from '@/lib/calculations';
+import { formatINR, calcMoneyPosition, getTodayDateString } from '@/lib/calculations';
 import type { IncomeType, MoneyType, MoneyPosition } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
@@ -66,7 +66,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
   }, [open, moneyPosition]);
 
   const [form, setForm] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(),
     type: 'Donation' as IncomeType,
     other_type: '',
     contributor: '',
@@ -141,7 +141,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
 
         setOpen(false);
         setForm({
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayDateString(),
           type: 'Donation',
           other_type: '',
           contributor: '',

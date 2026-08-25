@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { FinanceCallRecord, CommitmentStatus } from '@/lib/types';
+import { extractDateKey, getTodayDateString } from '@/lib/calculations';
 
 // GET /api/finance-calls - Fetch all finance calls and computed statistics
 export async function GET() {
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
         }
         const incId = `INC-${String(maxIncNum + 1).padStart(4, '0')}`;
         const incMoneyType = moneyType || 'UPI';
-        const incDate = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+        const incDate = typeof body.date === 'string' && body.date.trim() ? extractDateKey(body.date) : getTodayDateString();
 
         await supabase.from('income').insert({
           id: incId,

@@ -8,6 +8,7 @@ import {
   formatPrayerListText,
   formatPrayerNamesOnly,
   formatPrayerNamesAndIntentions,
+  getTodayDateString,
 } from '@/lib/calculations';
 import { KpiCard } from '@/components/finance/KpiCard';
 import { ViewModeToggle } from '@/components/finance/ViewModeToggle';
@@ -79,16 +80,11 @@ export function PrayerRequestManager({
 
   // Filtered requests
   const filteredRequests = useMemo(() => {
+    const todayKey = getTodayDateString();
     const now = new Date();
-    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    // 7 days ago
-    const weekAgo = new Date();
-    weekAgo.setDate(now.getDate() - 7);
-    const weekKey = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
-
-    // Month prefix
-    const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const weekAgo = new Date(now.getTime() - 7 * 86400000);
+    const weekKey = getTodayDateString(weekAgo);
+    const currentMonthPrefix = todayKey.slice(0, 7);
 
     return requests.filter((req) => {
       // Date Filter

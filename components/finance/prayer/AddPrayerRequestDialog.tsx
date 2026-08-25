@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { createPrayerRequest } from '@/features/prayer-requests';
 import type { PrayerStatus } from '@/lib/types';
+import { getTodayDateString } from '@/lib/calculations';
 
 interface AddPrayerRequestDialogProps {
   onSuccess?: () => void;
@@ -40,7 +41,7 @@ export function AddPrayerRequestDialog({
     person_name: '',
     mobile_number: '',
     prayer_request: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(),
     status: 'Active' as PrayerStatus,
     source: 'Direct',
     notes: '',
@@ -55,7 +56,7 @@ export function AddPrayerRequestDialog({
       person_name: '',
       mobile_number: '',
       prayer_request: '',
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayDateString(),
       status: 'Active',
       source: 'Direct',
       notes: '',

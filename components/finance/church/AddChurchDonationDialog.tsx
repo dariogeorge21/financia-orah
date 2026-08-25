@@ -22,7 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { createChurchDonation } from '@/features/church-donations';
-import { formatINR, calcMoneyPosition } from '@/lib/calculations';
+import { formatINR, calcMoneyPosition, getTodayDateString } from '@/lib/calculations';
 import type { MoneyType, MoneyPosition } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
@@ -61,7 +61,7 @@ export function AddChurchDonationDialog({
   const [form, setForm] = useState({
     church_name: '',
     contact_number: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(),
     collected_by: '',
     money_type: 'Cash' as MoneyType,
     is_handed_over: false,
@@ -123,7 +123,7 @@ export function AddChurchDonationDialog({
         setForm({
           church_name: '',
           contact_number: '',
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayDateString(),
           collected_by: '',
           money_type: 'Cash',
           is_handed_over: false,

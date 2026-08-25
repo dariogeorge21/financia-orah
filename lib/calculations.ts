@@ -324,33 +324,55 @@ export function expenseByCategory(expenses: ExpenseRecord[]) {
 }
 
 /**
- * Extracts a normalized YYYY-MM-DD date key from either a date string or ISO timestamp.
+ * Returns today's date formatted as YYYY-MM-DD in the local/IST timezone.
+ */
+export function getTodayDateString(date: Date = new Date()): string {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(date);
+  } catch {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+}
+
+/**
+ * Extracts a normalized YYYY-MM-DD date key from either a date string or ISO timestamp in local/IST timezone.
  */
 export function extractDateKey(dateOrIso?: string | null): string {
   if (!dateOrIso) {
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    return getTodayDateString();
   }
 
-  if (dateOrIso.includes('T')) {
-    try {
-      const parsed = new Date(dateOrIso);
-      if (!isNaN(parsed.getTime())) {
-        const y = parsed.getFullYear();
-        const m = String(parsed.getMonth() + 1).padStart(2, '0');
-        const d = String(parsed.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      }
-    } catch {
-      // fallback to split
+  const str = dateOrIso.trim();
+  // If already standard YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    return str;
+  }
+
+  try {
+    const parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      return formatter.format(parsed);
     }
-    return dateOrIso.split('T')[0];
+  } catch {
+    // fallback
   }
 
-  return dateOrIso.trim();
+  return str.split('T')[0];
 }
 
 /**
@@ -366,14 +388,12 @@ export function formatDisplayDate(dateStr: string): {
     const parts = dateStr.split('-').map(Number);
     if (parts.length === 3) {
       const [y, m, d] = parts;
-      const dateObj = new Date(y, m - 1, d);
+      const dateObj = new Date(y, m - 1, d, 12, 0, 0);
       if (!isNaN(dateObj.getTime())) {
+        const todayKey = getTodayDateString();
         const now = new Date();
-        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-        const yest = new Date();
-        yest.setDate(now.getDate() - 1);
-        const yestKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+        const yest = new Date(now.getTime() - 86400000);
+        const yestKey = getTodayDateString(yest);
 
         const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
         const displayDate = dateObj.toLocaleDateString('en-IN', {
@@ -583,8 +603,7 @@ export function groupPrayerRequestsByDate(requests: PrayerRequestRecord[]): {
     };
   });
 
-  const now = new Date();
-  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayKey = getTodayDateString();
 
   const todayRequests = requests.filter(
     (r) => extractDateKey(r.date || r.created_at) === todayKey

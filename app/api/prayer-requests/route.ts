@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { PrayerRequestRecord, PrayerStatus } from '@/lib/types';
-import { groupPrayerRequestsByDate } from '@/lib/calculations';
+import { groupPrayerRequestsByDate, extractDateKey, getTodayDateString } from '@/lib/calculations';
 
 // GET /api/prayer-requests - Fetch all prayer requests (from prayer_requests table + income sources)
 export async function GET() {
@@ -21,6 +21,7 @@ export async function GET() {
 
     const directRequests: PrayerRequestRecord[] = (directData ?? []).map((r) => ({
       ...r,
+      date: extractDateKey(r.date || r.created_at),
       isDirect: true,
     }));
 
@@ -36,7 +37,7 @@ export async function GET() {
       person_name: inc.contributor,
       mobile_number: inc.mobile_number || null,
       prayer_request: inc.prayer_request || '',
-      date: inc.date || (inc.created_at ? inc.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      date: extractDateKey(inc.date || inc.created_at),
       status: 'Active' as PrayerStatus,
       source: `Income (${inc.type})`,
       reference_id: inc.id,
@@ -58,7 +59,7 @@ export async function GET() {
       person_name: c.person_name,
       mobile_number: c.mobile_number || null,
       prayer_request: c.prayer_request || '',
-      date: c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+      date: extractDateKey(c.date || c.created_at),
       status: 'Active' as PrayerStatus,
       source: 'Personal Commitment',
       reference_id: c.id,
@@ -80,7 +81,7 @@ export async function GET() {
       person_name: c.person_name,
       mobile_number: c.mobile_number || null,
       prayer_request: c.prayer_request || '',
-      date: c.date || (c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      date: extractDateKey(c.date || c.created_at),
       status: 'Active' as PrayerStatus,
       source: 'Finance Call',
       reference_id: c.id,
@@ -102,7 +103,7 @@ export async function GET() {
       person_name: c.contributor_name,
       mobile_number: c.mobile_number || null,
       prayer_request: c.prayer_request || '',
-      date: c.date || (c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      date: extractDateKey(c.date || c.created_at),
       status: 'Active' as PrayerStatus,
       source: c.booklet_number ? `Coupon (#${c.booklet_number})` : 'Coupon',
       reference_id: c.id,
@@ -124,7 +125,7 @@ export async function GET() {
       person_name: c.church_name,
       mobile_number: c.contact_number || null,
       prayer_request: c.prayer_request || '',
-      date: c.date || (c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0]),
+      date: extractDateKey(c.date || c.created_at),
       status: 'Active' as PrayerStatus,
       source: 'Church & Convent',
       reference_id: c.id,
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
     const personName = typeof body.person_name === 'string' ? body.person_name.trim() : '';
     const mobileNumber = typeof body.mobile_number === 'string' ? body.mobile_number.trim() : null;
     const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : '';
-    const date = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+    const date = typeof body.date === 'string' && body.date.trim() ? extractDateKey(body.date) : getTodayDateString();
     const status = (body.status as PrayerStatus) || 'Active';
     const source = typeof body.source === 'string' ? body.source.trim() : 'Direct';
     const referenceId = typeof body.reference_id === 'string' ? body.reference_id.trim() : null;

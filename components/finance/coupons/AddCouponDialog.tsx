@@ -22,7 +22,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { createCoupon } from '@/features/coupons';
-import { formatINR, calcMoneyPosition } from '@/lib/calculations';
+import { formatINR, calcMoneyPosition, getTodayDateString } from '@/lib/calculations';
 import type { MoneyType, MoneyPosition } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
@@ -57,7 +57,7 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
   const [form, setForm] = useState({
     contributor_name: '',
     mobile_number: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getTodayDateString(),
     money_type: 'Cash' as MoneyType,
     is_handed_over: false,
     amount: '',
@@ -121,7 +121,7 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
         setForm({
           contributor_name: '',
           mobile_number: '',
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayDateString(),
           money_type: 'Cash',
           is_handed_over: false,
           amount: '',

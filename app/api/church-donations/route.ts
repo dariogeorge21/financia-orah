@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { ChurchDonationRecord, MoneyType } from '@/lib/types';
+import { extractDateKey, getTodayDateString } from '@/lib/calculations';
 
 // GET /api/church-donations - Fetch all church & convent donations and computed summary statistics
 export async function GET() {
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
     const churchName = typeof body.church_name === 'string' ? body.church_name.trim() : '';
     const contactNumber = typeof body.contact_number === 'string' ? body.contact_number.trim() : null;
-    const date = typeof body.date === 'string' && body.date.trim() ? body.date.trim() : new Date().toISOString().split('T')[0];
+    const date = typeof body.date === 'string' && body.date.trim() ? extractDateKey(body.date) : getTodayDateString();
     const moneyType = body.money_type as MoneyType;
     const amount = Number(body.amount);
     const collectedBy = typeof body.collected_by === 'string' ? body.collected_by.trim() : null;

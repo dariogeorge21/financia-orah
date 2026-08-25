@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import type { IncomeRecord, ExpenseRecord, ReimbursementRecord } from '@/lib/types';
 import { calcMoneyPosition } from '@/lib/calculations';
-import { IncomeManager } from '@/components/finance/IncomeManager';
+import { IncomeManager } from '@/components/finance/income/IncomeManager';
 
 export const dynamic = 'force-dynamic';
 

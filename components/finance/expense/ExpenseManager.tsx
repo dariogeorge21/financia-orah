@@ -25,10 +25,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddExpenseDialog } from './expense/AddExpenseDialog';
+import { AddExpenseDialog } from './AddExpenseDialog';
 import { EditExpenseDialog } from './EditExpenseDialog';
-import { SettleExpenseDialog } from './SettleExpenseDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { SettleExpenseDialog } from '../SettleExpenseDialog';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteExpense } from '@/features/expenses';
 
@@ -894,7 +894,7 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
       <SettleExpenseDialog
         expense={settlingExpense}
         open={Boolean(settlingExpense)}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open) setSettlingExpense(null);
         }}
         moneyPosition={moneyPosition}

@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddPersonalCommitmentDialog } from './commitments/AddPersonalCommitmentDialog';
+import { AddPersonalCommitmentDialog } from './AddPersonalCommitmentDialog';
 import { EditCommitmentDialog } from './EditCommitmentDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import {
   fetchPersonalCommitmentsData as fetchCommitmentsData,

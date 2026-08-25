@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { PersonalCommitmentRecord } from '@/lib/types';
-import { CommitmentManager } from '@/components/finance/CommitmentManager';
+import { CommitmentManager } from '@/components/finance/commitments/CommitmentManager';
 
 export const dynamic = 'force-dynamic';
 

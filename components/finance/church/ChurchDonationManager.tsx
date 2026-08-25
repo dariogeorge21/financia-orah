@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddChurchDonationDialog } from './Church/AddChurchDonationDialog';
+import { AddChurchDonationDialog } from './AddChurchDonationDialog';
 import { EditChurchDonationDialog } from './EditChurchDonationDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchChurchDonationsData, deleteChurchDonation, updateChurchDonation } from '@/features/church-donations';
 

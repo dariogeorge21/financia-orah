@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddCouponDialog } from './coupons/AddCouponDialog';
+import { AddCouponDialog } from './AddCouponDialog';
 import { EditCouponDialog } from './EditCouponDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchCouponsData, deleteCoupon, updateCoupon } from '@/features/coupons';
 

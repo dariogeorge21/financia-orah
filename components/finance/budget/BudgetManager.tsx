@@ -13,9 +13,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddBudgetDialog } from './Budget/AddBudgetDialog';
+import { AddBudgetDialog } from './AddBudgetDialog';
 import { EditBudgetDialog } from './EditBudgetDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchBudgetData, deleteBudgetCategory } from '@/features/budget';
 

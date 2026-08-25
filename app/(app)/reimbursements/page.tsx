@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { ReimbursementRecord } from '@/lib/types';
-import { ReimbursementManager } from '@/components/finance/ReimbursementManager';
+import { ReimbursementManager } from '@/components/finance/reimbursement/ReimbursementManager';
 
 export const dynamic = 'force-dynamic';
 

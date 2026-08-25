@@ -51,6 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (body.amount !== undefined) updates.amount = Number(body.amount);
     if (body.collected_by !== undefined) updates.collected_by = body.collected_by ? body.collected_by.trim() : null;
     if (body.notes !== undefined) updates.notes = body.notes ? body.notes.trim() : null;
+    if (body.prayer_request !== undefined) updates.prayer_request = body.prayer_request ? body.prayer_request.trim() : null;
     if (body.screenshot_link !== undefined) updates.screenshot_link = body.screenshot_link ? body.screenshot_link.trim() : null;
     if (body.is_handed_over !== undefined) updates.is_handed_over = Boolean(body.is_handed_over);
 

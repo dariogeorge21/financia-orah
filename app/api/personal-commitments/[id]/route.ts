@@ -97,6 +97,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.prayer_request !== undefined) {
+      updatePayload.prayer_request =
+        typeof body.prayer_request === 'string' && body.prayer_request.trim().length > 0
+          ? body.prayer_request.trim()
+          : null;
+    }
+
     if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {
       updatePayload.status = body.status as CommitmentStatus;
     }

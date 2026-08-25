@@ -62,6 +62,7 @@ export function EditIncomeDialog({
   const [isHandedOver, setIsHandedOver] = useState(true);
   const [referenceId, setReferenceId] = useState('');
   const [notes, setNotes] = useState('');
+  const [prayerRequest, setPrayerRequest] = useState('');
 
   useEffect(() => {
     if (income) {
@@ -82,6 +83,7 @@ export function EditIncomeDialog({
       setIsHandedOver(income.is_handed_over !== false);
       setReferenceId(income.reference_id || income.commitment_id || '');
       setNotes(income.notes || '');
+      setPrayerRequest(income.prayer_request || '');
       setError(null);
     }
   }, [income, open]);
@@ -128,6 +130,7 @@ export function EditIncomeDialog({
           is_handed_over: moneyType === 'UPI' ? true : isHandedOver,
           reference_id: referenceId.trim() || null,
           notes: notes.trim() || null,
+          prayer_request: prayerRequest.trim() || null,
         });
 
         onOpenChange(false);
@@ -279,6 +282,23 @@ export function EditIncomeDialog({
               id="edit-inc-reference"
               value={referenceId}
               onChange={(e) => setReferenceId(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="edit-inc-prayer-request" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <Textarea
+              id="edit-inc-prayer-request"
+              rows={2}
+              value={prayerRequest}
+              onChange={(e) => setPrayerRequest(e.target.value)}
+              placeholder="e.g. For family peace, healing, success in exams..."
+              className="text-xs bg-background"
             />
           </div>
 

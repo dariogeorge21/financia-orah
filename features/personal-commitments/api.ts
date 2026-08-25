@@ -45,6 +45,7 @@ export interface CreatePersonalCommitmentInput {
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
 }
 
 export interface UpdatePersonalCommitmentInput {
@@ -59,6 +60,7 @@ export interface UpdatePersonalCommitmentInput {
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
 }
 
 /**

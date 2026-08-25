@@ -122,6 +122,7 @@ export async function POST(request: Request) {
 
     const nextId = `FC-${String(maxNum + 1).padStart(4, '0')}`;
     const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : false;
+    const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
 
     const { data: newCall, error: insertError } = await supabase
       .from('finance_calls')
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
         screenshot_link: screenshotLink || null,
         status,
         notes: notes || null,
+        prayer_request: prayerRequest || null,
       })
       .select()
       .single();

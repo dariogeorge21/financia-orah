@@ -64,6 +64,7 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
     collected_by: '',
     booklet_number: '',
     notes: '',
+    prayer_request: '',
     screenshot_link: '',
   });
 
@@ -103,6 +104,7 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
           collected_by: form.collected_by.trim() || null,
           booklet_number: form.booklet_number.trim() || null,
           notes: form.notes.trim() || null,
+          prayer_request: form.prayer_request.trim() || null,
           screenshot_link: form.screenshot_link.trim() || null,
         });
 
@@ -126,6 +128,7 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
           collected_by: '',
           booklet_number: '',
           notes: '',
+          prayer_request: '',
           screenshot_link: '',
         });
         setOpen(false);
@@ -292,6 +295,24 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
               placeholder="https://drive.google.com/... or image link"
               value={form.screenshot_link}
               onChange={(e) => set('screenshot_link', e.target.value)}
+            />
+          </div>
+
+          {/* Prayer Request */}
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="coupon-prayer-request" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <Textarea
+              id="coupon-prayer-request"
+              rows={2}
+              placeholder="e.g. for donor's family, health, intentions..."
+              value={form.prayer_request}
+              onChange={(e) => set('prayer_request', e.target.value)}
+              className="text-xs bg-background"
             />
           </div>
 

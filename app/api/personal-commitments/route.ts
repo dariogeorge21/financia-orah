@@ -126,6 +126,8 @@ export async function POST(request: Request) {
 
     const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : false;
 
+    const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
+
     const { data: newCommitment, error: insertError } = await supabase
       .from('personal_commitments')
       .insert({
@@ -140,6 +142,7 @@ export async function POST(request: Request) {
         screenshot_link: screenshotLink || null,
         status,
         notes: notes || null,
+        prayer_request: prayerRequest || null,
       })
       .select()
       .single();

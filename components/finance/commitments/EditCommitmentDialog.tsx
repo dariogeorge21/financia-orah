@@ -50,6 +50,7 @@ export function EditCommitmentDialog({
   const [screenshotLink, setScreenshotLink] = useState('');
   const [status, setStatus] = useState<CommitmentStatus>('Pending');
   const [notes, setNotes] = useState('');
+  const [prayerRequest, setPrayerRequest] = useState('');
 
   useEffect(() => {
     if (commitment) {
@@ -69,6 +70,7 @@ export function EditCommitmentDialog({
       setIsHandedOver(commitment.is_handed_over !== false);
       setScreenshotLink(commitment.screenshot_link || '');
       setNotes(commitment.notes || '');
+      setPrayerRequest(commitment.prayer_request || '');
       setError(null);
     }
   }, [commitment, open]);
@@ -121,7 +123,7 @@ export function EditCommitmentDialog({
     if (status === 'Fully Received') {
       finalReceived = promisedNum;
     } else if (status === 'Partially Received') {
-      finalReceived = parseFloat(received);
+      finalReceived = received ? parseFloat(received) : 0;
       if (isNaN(finalReceived) || finalReceived <= 0) {
         setError('Please enter a valid received amount greater than 0 for partial payment.');
         return;
@@ -150,6 +152,7 @@ export function EditCommitmentDialog({
           screenshot_link: screenshotLink.trim() || null,
           status,
           notes: notes.trim() || null,
+          prayer_request: prayerRequest.trim() || null,
         });
 
         onOpenChange(false);
@@ -338,6 +341,23 @@ export function EditCommitmentDialog({
               </div>
             </div>
           )}
+
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="edit-pcom-prayer-request" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <Textarea
+              id="edit-pcom-prayer-request"
+              rows={2}
+              value={prayerRequest}
+              placeholder="e.g. for family health, peace, success in career..."
+              onChange={(e) => setPrayerRequest(e.target.value)}
+              className="text-xs bg-background"
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-notes">Notes / Follow-up Details</Label>

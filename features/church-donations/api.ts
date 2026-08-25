@@ -36,6 +36,7 @@ export interface CreateChurchDonationInput {
   amount: number;
   is_handed_over?: boolean | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
 }
 
@@ -48,6 +49,7 @@ export interface UpdateChurchDonationInput {
   amount?: number;
   is_handed_over?: boolean | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
 }
 

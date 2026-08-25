@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     const moneyType = body.money_type as MoneyType;
     const isHandedOver = moneyType === 'UPI' ? true : body.is_handed_over !== undefined ? Boolean(body.is_handed_over) : true;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
+    const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
     const referenceId = typeof body.reference_id === 'string' ? body.reference_id.trim() : null;
 
     if (!type) {
@@ -130,6 +131,7 @@ export async function POST(request: Request) {
         is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         notes: notes || null,
+        prayer_request: prayerRequest || null,
         reference_id: referenceId || null,
         commitment_id: referenceId || null,
       })

@@ -37,6 +37,7 @@ export interface CreateCouponInput {
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
 }
 
@@ -50,6 +51,7 @@ export interface UpdateCouponInput {
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
 }
 

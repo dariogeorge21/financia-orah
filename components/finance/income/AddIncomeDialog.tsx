@@ -76,6 +76,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
     money_type: 'UPI' as MoneyType,
     is_handed_over: true,
     notes: '',
+    prayer_request: '',
     reference_id: '',
   });
 
@@ -122,6 +123,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           money_type: form.money_type,
           is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
           notes: form.notes.trim() || null,
+          prayer_request: form.prayer_request.trim() || null,
           reference_id: form.reference_id.trim() || null,
         });
 
@@ -149,6 +151,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           money_type: 'UPI',
           is_handed_over: true,
           notes: '',
+          prayer_request: '',
           reference_id: '',
         });
         onSuccess?.();
@@ -328,6 +331,26 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
               placeholder="e.g. PCOM-0001 or FC-0002"
               value={form.reference_id}
               onChange={(e) => set('reference_id', e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="inc-prayer-request" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Record their personal prayer intention so our team can intercede and pray for them.
+            </p>
+            <Textarea
+              id="inc-prayer-request"
+              placeholder="e.g. For family peace, healing, success in exams..."
+              value={form.prayer_request}
+              onChange={(e) => set('prayer_request', e.target.value)}
+              rows={2}
+              className="text-xs bg-background"
             />
           </div>
 

@@ -62,6 +62,7 @@ export function AddFinanceCallDialog({
     is_handed_over: false,
     screenshot_link: '',
     notes: '',
+    prayer_request: '',
   });
 
   function set(key: string, value: unknown) {
@@ -117,6 +118,7 @@ export function AddFinanceCallDialog({
           screenshot_link: form.screenshot_link.trim() || null,
           status: finalStatus,
           notes: form.notes.trim() || null,
+          prayer_request: form.prayer_request.trim() || null,
         });
 
         if (finalReceived > 0) {
@@ -149,6 +151,7 @@ export function AddFinanceCallDialog({
           is_handed_over: false,
           screenshot_link: '',
           notes: '',
+          prayer_request: '',
         });
         onSuccess?.();
       } catch (err: unknown) {
@@ -361,6 +364,26 @@ export function AddFinanceCallDialog({
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="fc-prayer-request" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Record their personal prayer intention so our intercession team can pray for them.
+            </p>
+            <Textarea
+              id="fc-prayer-request"
+              placeholder="e.g. For family health, peace, success in career..."
+              value={form.prayer_request}
+              onChange={(e) => set('prayer_request', e.target.value)}
+              rows={2}
+              className="text-xs bg-background"
+            />
           </div>
 
           <div className="space-y-1.5">

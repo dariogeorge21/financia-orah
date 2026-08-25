@@ -45,6 +45,7 @@ export interface CreateFinanceCallInput {
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
 }
 
 export interface UpdateFinanceCallInput {
@@ -59,6 +60,7 @@ export interface UpdateFinanceCallInput {
   date?: string;
   status?: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
 }
 
 /**

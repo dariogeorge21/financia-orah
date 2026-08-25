@@ -49,6 +49,7 @@ export function EditCouponDialog({
     collected_by: '',
     booklet_number: '',
     notes: '',
+    prayer_request: '',
     screenshot_link: '',
   });
 
@@ -64,6 +65,7 @@ export function EditCouponDialog({
         collected_by: coupon.collected_by || '',
         booklet_number: coupon.booklet_number || '',
         notes: coupon.notes || '',
+        prayer_request: coupon.prayer_request || '',
         screenshot_link: coupon.screenshot_link || '',
       });
       setError(null);
@@ -102,6 +104,7 @@ export function EditCouponDialog({
           collected_by: form.collected_by.trim() || null,
           booklet_number: form.booklet_number.trim() || null,
           notes: form.notes.trim() || null,
+          prayer_request: form.prayer_request.trim() || null,
           screenshot_link: form.screenshot_link.trim() || null,
         });
 
@@ -240,6 +243,24 @@ export function EditCouponDialog({
               type="url"
               value={form.screenshot_link}
               onChange={(e) => set('screenshot_link', e.target.value)}
+            />
+          </div>
+
+          {/* Prayer Request */}
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="edit_coupon_prayer" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <Textarea
+              id="edit_coupon_prayer"
+              rows={2}
+              value={form.prayer_request}
+              placeholder="e.g. for donor's family, health, intentions..."
+              onChange={(e) => set('prayer_request', e.target.value)}
+              className="text-xs bg-background"
             />
           </div>
 

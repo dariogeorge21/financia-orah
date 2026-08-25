@@ -48,6 +48,7 @@ export function EditChurchDonationDialog({
     is_handed_over: false,
     amount: '',
     notes: '',
+    prayer_request: '',
     screenshot_link: '',
   });
 
@@ -62,6 +63,7 @@ export function EditChurchDonationDialog({
         is_handed_over: donation.is_handed_over !== false,
         amount: String(donation.amount || ''),
         notes: donation.notes || '',
+        prayer_request: donation.prayer_request || '',
         screenshot_link: donation.screenshot_link || '',
       });
       setError(null);
@@ -99,6 +101,7 @@ export function EditChurchDonationDialog({
           amount: amountNum,
           is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
           notes: form.notes.trim() || null,
+          prayer_request: form.prayer_request.trim() || null,
           screenshot_link: form.screenshot_link.trim() || null,
         });
 
@@ -227,6 +230,24 @@ export function EditChurchDonationDialog({
               type="url"
               value={form.screenshot_link}
               onChange={(e) => set('screenshot_link', e.target.value)}
+            />
+          </div>
+
+          {/* Prayer Request */}
+          <div className="space-y-1.5 rounded-xl border border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20 p-3">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">🙏</span>
+              <Label htmlFor="edit_church_prayer" className="text-xs font-semibold text-foreground">
+                Prayer Request / Intention (Optional)
+              </Label>
+            </div>
+            <Textarea
+              id="edit_church_prayer"
+              rows={2}
+              value={form.prayer_request}
+              placeholder="e.g. for parish community, priests, nuns, intentions..."
+              onChange={(e) => set('prayer_request', e.target.value)}
+              className="text-xs bg-background"
             />
           </div>
 

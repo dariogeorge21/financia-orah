@@ -93,6 +93,13 @@ export async function PATCH(request: Request, context: RouteContext) {
           : null;
     }
 
+    if (body.prayer_request !== undefined) {
+      updatePayload.prayer_request =
+        typeof body.prayer_request === 'string' && body.prayer_request.trim().length > 0
+          ? body.prayer_request.trim()
+          : null;
+    }
+
     if (body.is_handed_over !== undefined) {
       updatePayload.is_handed_over = Boolean(body.is_handed_over);
     }

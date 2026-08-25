@@ -40,6 +40,7 @@ export interface CreateIncomeInput {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   reference_id?: string | null;
 }
 
@@ -54,6 +55,7 @@ export interface UpdateIncomeInput {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   reference_id?: string | null;
 }
 

@@ -102,6 +102,8 @@ export async function POST(request: Request) {
 
     const nextId = `CHU-${String(maxNum + 1).padStart(4, '0')}`;
 
+    const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
+
     const { data: newDonation, error: insertError } = await supabase
       .from('church_donations')
       .insert({
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
         amount,
         is_handed_over: isHandedOver,
         notes: notes || null,
+        prayer_request: prayerRequest || null,
         screenshot_link: screenshotLink || null,
       })
       .select()

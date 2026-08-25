@@ -102,6 +102,7 @@ export async function POST(request: Request) {
     }
 
     const nextId = `CPN-${String(maxNum + 1).padStart(4, '0')}`;
+    const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
 
     const { data: newCoupon, error: insertError } = await supabase
       .from('coupons')
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
         collected_by: collectedBy || null,
         booklet_number: bookletNumber || null,
         notes: notes || null,
+        prayer_request: prayerRequest || null,
         screenshot_link: screenshotLink || null,
       })
       .select()

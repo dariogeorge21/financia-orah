@@ -27,11 +27,11 @@ import type { IncomeType, MoneyType, MoneyPosition } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 const INCOME_TYPES: IncomeType[] = [
-  'Registration',
   'Donation',
+  'Registration',
   'Personal Commitment',
   'Finance Call',
-  'Church',
+  'Church/Convent',
   'Coupon',
   'Sponsor',
   'Other',
@@ -67,13 +67,13 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
-    type: 'Registration' as IncomeType,
+    type: 'Donation' as IncomeType,
     other_type: '',
     contributor: '',
     mobile_number: '',
     description: '',
     amount: '',
-    money_type: 'Cash' as MoneyType,
+    money_type: 'UPI' as MoneyType,
     is_handed_over: true,
     notes: '',
     reference_id: '',

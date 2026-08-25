@@ -9,7 +9,7 @@ export type IncomeType =
   | 'Personal Commitment'
   | 'Finance Call'
   | 'Commitment'
-  | 'Church'
+  | 'Church/Convent'
   | 'Coupon'
   | 'Sponsor'
   | 'Other';

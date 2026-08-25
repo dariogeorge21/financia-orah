@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AddReimbursementDialog } from './AddReimbursementDialog';
+import { AddReimbursementDialog } from './reimbursement/AddReimbursementDialog';
 import { EditReimbursementDialog } from './EditReimbursementDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

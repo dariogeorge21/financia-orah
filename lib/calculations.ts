@@ -20,6 +20,9 @@ import type {
   BudgetRow,
   DailyFlowRecord,
   DailyFlowSummary,
+  PrayerRequestRecord,
+  DailyPrayerGroup,
+  PrayerSummary,
 } from './types';
 
 /**
@@ -367,7 +370,7 @@ export function formatDisplayDate(dateStr: string): {
       if (!isNaN(dateObj.getTime())) {
         const now = new Date();
         const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        
+
         const yest = new Date();
         yest.setDate(now.getDate() - 1);
         const yestKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
@@ -544,4 +547,120 @@ export function calcDailyFlowRecords(
 
   return { dailyRecords, summary };
 }
+
+/**
+ * Groups prayer requests date-wise and computes summary statistics.
+ */
+export function groupPrayerRequestsByDate(requests: PrayerRequestRecord[]): {
+  groups: DailyPrayerGroup[];
+  summary: PrayerSummary;
+} {
+  const map = new Map<string, PrayerRequestRecord[]>();
+
+  for (const req of requests) {
+    const dateKey = extractDateKey(req.date || req.created_at);
+    if (!map.has(dateKey)) {
+      map.set(dateKey, []);
+    }
+    map.get(dateKey)!.push(req);
+  }
+
+  // Sort dates descending (newest first)
+  const allDates = Array.from(map.keys()).sort((a, b) => b.localeCompare(a));
+
+  const groups: DailyPrayerGroup[] = allDates.map((dateKey) => {
+    const list = map.get(dateKey)!;
+    const { displayDate, dayOfWeek, isToday, isYesterday } = formatDisplayDate(dateKey);
+
+    return {
+      date: dateKey,
+      displayDate,
+      dayOfWeek,
+      isToday,
+      isYesterday,
+      requests: list,
+      count: list.length,
+    };
+  });
+
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  const todayRequests = requests.filter(
+    (r) => extractDateKey(r.date || r.created_at) === todayKey
+  ).length;
+  const activeRequests = requests.filter((r) => r.status === 'Active').length;
+  const answeredRequests = requests.filter((r) => r.status === 'Answered').length;
+  const archivedRequests = requests.filter((r) => r.status === 'Archived').length;
+
+  const uniquePeople = new Set(requests.map((r) => r.person_name.trim().toLowerCase())).size;
+
+  const summary: PrayerSummary = {
+    totalRequests: requests.length,
+    todayRequests,
+    activeRequests,
+    answeredRequests,
+    archivedRequests,
+    totalPeople: uniquePeople,
+    totalDaysWithRequests: groups.length,
+  };
+
+  return { groups, summary };
+}
+
+/**
+ * Formats a clean, structured text of prayer requests for clipboard copy.
+ */
+export function formatPrayerListText(
+  requests: PrayerRequestRecord[],
+  headerTitle: string = 'ORAH CAMPUS MEET 2026 - PRAYER LIST'
+): string {
+  if (requests.length === 0) return 'No prayer requests recorded.';
+
+  const { groups } = groupPrayerRequestsByDate(requests);
+
+  let output = `🙏 ${headerTitle}\n`;
+  output += `Total Requests: ${requests.length} · People: ${new Set(requests.map((r) => r.person_name.trim().toLowerCase())).size}\n`;
+  output += `═══════════════════════════════════════\n\n`;
+
+  for (const grp of groups) {
+    output += `📅 ${grp.displayDate} (${grp.dayOfWeek})\n`;
+    output += `───────────────────────────────────────\n`;
+
+    grp.requests.forEach((req, idx) => {
+      const phone = req.mobile_number ? ` (📱 ${req.mobile_number})` : '';
+      const statusBadge = req.status === 'Answered' ? ' [✓ Answered]' : '';
+      output += `${idx + 1}. ${req.person_name}${phone}${statusBadge}\n`;
+      output += `   • Intention: ${req.prayer_request}\n`;
+      if (req.notes) {
+        output += `   • Note: ${req.notes}\n`;
+      }
+      output += `\n`;
+    });
+
+    output += `\n`;
+  }
+
+  return output.trim();
+}
+
+/**
+ * Formats names only for clipboard copy (clean list).
+ */
+export function formatPrayerNamesOnly(requests: PrayerRequestRecord[]): string {
+  if (requests.length === 0) return 'No names found.';
+  const names = Array.from(new Set(requests.map((r) => r.person_name.trim())));
+  return names.map((name, i) => `${i + 1}. ${name}`).join('\n');
+}
+
+/**
+ * Formats names with phone numbers for clipboard copy.
+ */
+export function formatPrayerContactsList(requests: PrayerRequestRecord[]): string {
+  if (requests.length === 0) return 'No contacts found.';
+  return requests
+    .map((r, i) => `${i + 1}. ${r.person_name} - ${r.mobile_number || 'No Phone'}`)
+    .join('\n');
+}
+
 

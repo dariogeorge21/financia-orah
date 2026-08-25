@@ -49,6 +49,7 @@ export interface IncomeRecord {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   reference_id?: string | null;
   commitment_id?: string | null;
   created_at?: string;
@@ -66,6 +67,7 @@ export interface PersonalCommitmentRecord {
   screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
   created_at?: string;
 }
 
@@ -81,6 +83,7 @@ export interface FinanceCallRecord {
   screenshot_link?: string | null;
   status: CommitmentStatus;
   notes?: string | null;
+  prayer_request?: string | null;
   created_at?: string;
 }
 
@@ -95,6 +98,7 @@ export interface CouponRecord {
   collected_by?: string | null;
   booklet_number?: string | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
   created_at?: string;
 }
@@ -109,6 +113,7 @@ export interface ChurchDonationRecord {
   amount: number;
   is_handed_over?: boolean | null;
   notes?: string | null;
+  prayer_request?: string | null;
   screenshot_link?: string | null;
   created_at?: string;
 }
@@ -270,4 +275,42 @@ export interface DailyFlowSummary {
 
   totalDaysWithActivity: number;
 }
+
+export type PrayerStatus = 'Active' | 'Answered' | 'Archived';
+
+export interface PrayerRequestRecord {
+  id: string;
+  person_name: string;
+  mobile_number?: string | null;
+  prayer_request: string;
+  date: string; // 'YYYY-MM-DD'
+  status: PrayerStatus;
+  source?: string | null; // e.g. 'Direct', 'Donation', 'Personal Commitment', 'Finance Call', 'Coupon', 'Church'
+  reference_id?: string | null;
+  notes?: string | null;
+  amount?: number | null;
+  created_at?: string;
+  isDirect?: boolean;
+}
+
+export interface DailyPrayerGroup {
+  date: string; // 'YYYY-MM-DD'
+  displayDate: string;
+  dayOfWeek: string;
+  isToday: boolean;
+  isYesterday: boolean;
+  requests: PrayerRequestRecord[];
+  count: number;
+}
+
+export interface PrayerSummary {
+  totalRequests: number;
+  todayRequests: number;
+  activeRequests: number;
+  answeredRequests: number;
+  archivedRequests: number;
+  totalPeople: number;
+  totalDaysWithRequests: number;
+}
+
 

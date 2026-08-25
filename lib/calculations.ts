@@ -18,6 +18,8 @@ import type {
   ChurchSummary,
   CouponSummary,
   BudgetRow,
+  DailyFlowRecord,
+  DailyFlowSummary,
 } from './types';
 
 /**
@@ -317,3 +319,229 @@ export function expenseByCategory(expenses: ExpenseRecord[]) {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
 }
+
+/**
+ * Extracts a normalized YYYY-MM-DD date key from either a date string or ISO timestamp.
+ */
+export function extractDateKey(dateOrIso?: string | null): string {
+  if (!dateOrIso) {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  if (dateOrIso.includes('T')) {
+    try {
+      const parsed = new Date(dateOrIso);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    } catch {
+      // fallback to split
+    }
+    return dateOrIso.split('T')[0];
+  }
+
+  return dateOrIso.trim();
+}
+
+/**
+ * Formats a YYYY-MM-DD date key for clean display, day of week, and relative tags.
+ */
+export function formatDisplayDate(dateStr: string): {
+  displayDate: string;
+  dayOfWeek: string;
+  isToday: boolean;
+  isYesterday: boolean;
+} {
+  try {
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length === 3) {
+      const [y, m, d] = parts;
+      const dateObj = new Date(y, m - 1, d);
+      if (!isNaN(dateObj.getTime())) {
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        
+        const yest = new Date();
+        yest.setDate(now.getDate() - 1);
+        const yestKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`;
+
+        const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const displayDate = dateObj.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        });
+
+        return {
+          displayDate,
+          dayOfWeek,
+          isToday: dateStr === todayKey,
+          isYesterday: dateStr === yestKey,
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return {
+    displayDate: dateStr,
+    dayOfWeek: '',
+    isToday: false,
+    isYesterday: false,
+  };
+}
+
+/**
+ * Calculates day-by-day cashflow breakdown (Cash vs UPI Income & Outgoing) and overall summary statistics.
+ */
+export function calcDailyFlowRecords(
+  income: IncomeRecord[],
+  expenses: ExpenseRecord[]
+): {
+  dailyRecords: DailyFlowRecord[];
+  summary: DailyFlowSummary;
+} {
+  const map = new Map<
+    string,
+    {
+      incomeRecords: IncomeRecord[];
+      expenseRecords: ExpenseRecord[];
+    }
+  >();
+
+  // Group all income records by date
+  for (const inc of income) {
+    const dateKey = extractDateKey(inc.date || inc.created_at);
+    if (!map.has(dateKey)) {
+      map.set(dateKey, { incomeRecords: [], expenseRecords: [] });
+    }
+    map.get(dateKey)!.incomeRecords.push(inc);
+  }
+
+  // Group all expense records by date
+  for (const exp of expenses) {
+    const dateKey = extractDateKey(exp.created_at || (exp as unknown as { date?: string }).date);
+    if (!map.has(dateKey)) {
+      map.set(dateKey, { incomeRecords: [], expenseRecords: [] });
+    }
+    map.get(dateKey)!.expenseRecords.push(exp);
+  }
+
+  // Sort dates descending (newest first)
+  const allDates = Array.from(map.keys()).sort((a, b) => b.localeCompare(a));
+
+  const dailyRecords: DailyFlowRecord[] = allDates.map((dateKey) => {
+    const group = map.get(dateKey)!;
+    const { displayDate, dayOfWeek, isToday, isYesterday } = formatDisplayDate(dateKey);
+
+    // Income breakdown
+    let incomeCash = 0;
+    let incomeUpi = 0;
+    for (const inc of group.incomeRecords) {
+      const amt = Number(inc.amount) || 0;
+      if (inc.money_type === 'Cash') {
+        incomeCash += amt;
+      } else if (inc.money_type === 'UPI') {
+        incomeUpi += amt;
+      }
+    }
+    const incomeTotal = incomeCash + incomeUpi;
+    const incomeCount = group.incomeRecords.length;
+
+    // Outgoing / Expense breakdown
+    let expenseCash = 0;
+    let expenseUpi = 0;
+    let expenseCount = 0;
+
+    for (const exp of group.expenseRecords) {
+      if (exp.status === 'Approved') {
+        expenseCash += calcExpenseCashImpact(exp);
+        expenseUpi += calcExpenseUpiImpact(exp);
+        expenseCount += 1;
+      }
+    }
+
+    const expenseTotal = expenseCash + expenseUpi;
+    const netCash = incomeCash - expenseCash;
+    const netUpi = incomeUpi - expenseUpi;
+    const netTotal = incomeTotal - expenseTotal;
+
+    return {
+      date: dateKey,
+      displayDate,
+      dayOfWeek,
+      isToday,
+      isYesterday,
+      incomeCash,
+      incomeUpi,
+      incomeTotal,
+      incomeCount,
+      expenseCash,
+      expenseUpi,
+      expenseTotal,
+      expenseCount,
+      netCash,
+      netUpi,
+      netTotal,
+      incomeRecords: group.incomeRecords,
+      expenseRecords: group.expenseRecords,
+    };
+  });
+
+  // Calculate global summary across all days
+  let totalIncome = 0;
+  let incomeCash = 0;
+  let incomeUpi = 0;
+
+  let totalExpense = 0;
+  let expenseCash = 0;
+  let expenseUpi = 0;
+
+  let todayIncome = 0;
+  let todayExpense = 0;
+
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  for (const rec of dailyRecords) {
+    totalIncome += rec.incomeTotal;
+    incomeCash += rec.incomeCash;
+    incomeUpi += rec.incomeUpi;
+
+    totalExpense += rec.expenseTotal;
+    expenseCash += rec.expenseCash;
+    expenseUpi += rec.expenseUpi;
+
+    if (rec.date === todayKey) {
+      todayIncome = rec.incomeTotal;
+      todayExpense = rec.expenseTotal;
+    }
+  }
+
+  const summary: DailyFlowSummary = {
+    totalIncome,
+    incomeCash,
+    incomeUpi,
+    totalExpense,
+    expenseCash,
+    expenseUpi,
+    netFlow: totalIncome - totalExpense,
+    netCash: incomeCash - expenseCash,
+    netUpi: incomeUpi - expenseUpi,
+    todayIncome,
+    todayExpense,
+    todayNet: todayIncome - todayExpense,
+    totalDaysWithActivity: dailyRecords.length,
+  };
+
+  return { dailyRecords, summary };
+}
+

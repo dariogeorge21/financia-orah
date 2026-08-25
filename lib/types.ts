@@ -221,3 +221,53 @@ export interface BudgetRow extends BudgetCategory {
   utilizationPct: number;
   statusLabel: 'Healthy' | 'Warning' | 'Critical';
 }
+
+export interface DailyFlowRecord {
+  date: string; // 'YYYY-MM-DD'
+  displayDate: string; // formatted date
+  dayOfWeek: string; // 'Monday', etc.
+  isToday: boolean;
+  isYesterday: boolean;
+
+  // Income Breakdown
+  incomeCash: number;
+  incomeUpi: number;
+  incomeTotal: number;
+  incomeCount: number;
+
+  // Outgoing / Expense Breakdown
+  expenseCash: number;
+  expenseUpi: number;
+  expenseTotal: number;
+  expenseCount: number;
+
+  // Net Cash Flow for the Day
+  netCash: number;
+  netUpi: number;
+  netTotal: number;
+
+  // Raw records for detailed drilldowns
+  incomeRecords: IncomeRecord[];
+  expenseRecords: ExpenseRecord[];
+}
+
+export interface DailyFlowSummary {
+  totalIncome: number;
+  incomeCash: number;
+  incomeUpi: number;
+
+  totalExpense: number;
+  expenseCash: number;
+  expenseUpi: number;
+
+  netFlow: number;
+  netCash: number;
+  netUpi: number;
+
+  todayIncome: number;
+  todayExpense: number;
+  todayNet: number;
+
+  totalDaysWithActivity: number;
+}
+

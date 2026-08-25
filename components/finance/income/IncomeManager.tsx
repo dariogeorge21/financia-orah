@@ -20,7 +20,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddIncomeDialog } from './AddIncomeDialog';
+import { AddIncomeDialog } from './income/AddIncomeDialog';
 import { EditIncomeDialog } from './EditIncomeDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

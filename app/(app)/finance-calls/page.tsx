@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { FinanceCallRecord } from '@/lib/types';
-import { FinanceCallManager } from '@/components/finance/FinanceCallManager';
+import { FinanceCallManager } from '@/components/finance/finance-call/FinanceCallManager';
 
 export const dynamic = 'force-dynamic';
 

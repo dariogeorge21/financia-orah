@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { CouponRecord } from '@/lib/types';
-import { CouponManager } from '@/components/finance/CouponManager';
+import { CouponManager } from '@/components/finance/coupons/CouponManager';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { ChurchDonationRecord } from '@/lib/types';
-import { ChurchDonationManager } from '@/components/finance/ChurchDonationManager';
+import { ChurchDonationManager } from '@/components/finance/church/ChurchDonationManager';
 
 export const dynamic = 'force-dynamic';
 

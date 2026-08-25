@@ -654,6 +654,16 @@ export function formatPrayerNamesOnly(requests: PrayerRequestRecord[]): string {
 }
 
 /**
+ * Formats names and their prayer intentions for clipboard copy.
+ */
+export function formatPrayerNamesAndIntentions(requests: PrayerRequestRecord[]): string {
+  if (requests.length === 0) return 'No prayer intentions found.';
+  return requests
+    .map((r, i) => `${i + 1}. ${r.person_name} - ${r.prayer_request}`)
+    .join('\n');
+}
+
+/**
  * Formats names with phone numbers for clipboard copy.
  */
 export function formatPrayerContactsList(requests: PrayerRequestRecord[]): string {

@@ -7,7 +7,7 @@ import {
   groupPrayerRequestsByDate,
   formatPrayerListText,
   formatPrayerNamesOnly,
-  formatPrayerContactsList,
+  formatPrayerNamesAndIntentions,
 } from '@/lib/calculations';
 import { KpiCard } from '@/components/finance/KpiCard';
 import { ViewModeToggle } from '@/components/finance/ViewModeToggle';
@@ -287,13 +287,13 @@ export function PrayerRequestManager({
               <DropdownMenuItem
                 onClick={() =>
                   copyToClipboard(
-                    formatPrayerContactsList(filteredRequests),
-                    'Copied contacts list to clipboard!'
+                    formatPrayerNamesAndIntentions(filteredRequests),
+                    'Copied names and intentions to clipboard!'
                   )
                 }
                 className="text-xs cursor-pointer"
               >
-                📱 Copy Names & Numbers
+                📜 Copy Names & Intentions
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -624,6 +624,21 @@ export function PrayerRequestManager({
                     title="Copy names only for this date"
                   >
                     Copy Names
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() =>
+                      copyToClipboard(
+                        formatPrayerNamesAndIntentions(group.requests),
+                        `Copied ${group.count} names & intentions for ${group.displayDate}!`
+                      )
+                    }
+                    className="text-[11px] h-7 px-2 text-muted-foreground hover:text-foreground"
+                    title="Copy names & intentions for this date"
+                  >
+                    Copy Intentions
                   </Button>
 
                   <Button

@@ -90,7 +90,7 @@ Designed with rich visual aesthetics, a clean dark/light mode system, and smooth
 Create a `.env` file (or `.env.local`) in the root directory and populate it with your Supabase credentials:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 ```
 
 ### 3. Database Migration

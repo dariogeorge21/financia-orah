@@ -334,12 +334,12 @@ export function EditExpenseDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-exp-desc">Description</Label>
+            <Label htmlFor="edit-exp-desc">Description (Optional)</Label>
             <Input
               id="edit-exp-desc"
+              placeholder="What was this for? (Optional)"
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              required
             />
           </div>
 

@@ -104,8 +104,8 @@ export function EditIncomeDialog({
       return;
     }
 
-    if (!finalType || !contributor.trim() || !description.trim()) {
-      setError('Please fill all required fields.');
+    if (!finalType || !contributor.trim()) {
+      setError('Please fill all required fields (Type, Contributor).');
       return;
     }
 
@@ -212,12 +212,12 @@ export function EditIncomeDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="edit-inc-desc">Description</Label>
+            <Label htmlFor="edit-inc-desc">Description (Optional)</Label>
             <Input
               id="edit-inc-desc"
+              placeholder="Optional description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              required
             />
           </div>
 

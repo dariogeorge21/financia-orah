@@ -36,7 +36,7 @@ export interface ExpenseMutationResponse {
 
 export interface CreateExpenseInput {
   category: string;
-  description: string;
+  description?: string | null;
   amount: number;
   money_type: MoneyType;
   paid_by: string;

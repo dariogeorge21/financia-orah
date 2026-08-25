@@ -120,10 +120,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Category is required.' }, { status: 400 });
     }
 
-    if (!description) {
-      return NextResponse.json({ success: false, error: 'Description is required.' }, { status: 400 });
-    }
-
     if (isNaN(amount) || amount <= 0) {
       return NextResponse.json(
         { success: false, error: 'Amount must be greater than 0.' },

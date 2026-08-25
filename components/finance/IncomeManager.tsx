@@ -106,7 +106,7 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
       const matchesSearch =
         inc.id.toLowerCase().includes(q) ||
         inc.contributor.toLowerCase().includes(q) ||
-        inc.description.toLowerCase().includes(q) ||
+        (inc.description && inc.description.toLowerCase().includes(q)) ||
         (inc.mobile_number && inc.mobile_number.includes(q)) ||
         (inc.reference_id && inc.reference_id.toLowerCase().includes(q)) ||
         (inc.notes && inc.notes.toLowerCase().includes(q));
@@ -562,8 +562,8 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {inc.mobile_number || '—'}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description}>
-                      {inc.description}
+                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description || ''}>
+                      {inc.description || '—'}
                     </td>
                     <td className="px-4 py-3 text-left font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                       {formatINR(inc.amount)}

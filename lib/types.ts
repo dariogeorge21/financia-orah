@@ -42,7 +42,7 @@ export interface IncomeRecord {
   type: IncomeType;
   contributor: string;
   mobile_number?: string | null;
-  description: string;
+  description?: string | null;
   amount: number;
   money_type: MoneyType;
   is_handed_over?: boolean | null;
@@ -118,7 +118,7 @@ export type CommitmentRecord = PersonalCommitmentRecord;
 export interface ExpenseRecord {
   id: string;
   category: ExpenseCategory;
-  description: string;
+  description?: string | null;
   amount: number;
   money_type: MoneyType;
   paid_by: string;

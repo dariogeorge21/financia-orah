@@ -335,18 +335,17 @@ export function AddExpenseDialog({
 
           <div className="space-y-1.5">
             <Label htmlFor="exp-desc">
-              {entryMode === 'advance' ? 'Purpose of Advance' : 'Description'}
+              {entryMode === 'advance' ? 'Purpose of Advance (Optional)' : 'Description (Optional)'}
             </Label>
             <Input
               id="exp-desc"
               placeholder={
                 entryMode === 'advance'
-                  ? 'e.g. Purchasing chart papers, food for volunteers, cab fare...'
-                  : 'What was this for?'
+                  ? 'e.g. Purchasing chart papers, food for volunteers, cab fare... (Optional)'
+                  : 'What was this for? (Optional)'
               }
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              required
             />
           </div>
 

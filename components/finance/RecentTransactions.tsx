@@ -62,7 +62,7 @@ export function RecentTransactions({ income, expenses }: Props) {
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{exp.description}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{exp.description || exp.paid_by || exp.category}</p>
                   <p className="text-xs text-muted-foreground">
                     {exp.category} · {exp.money_type}
                     {exp.settlement_status === 'Advance Given' && (

@@ -101,7 +101,7 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
       const q = searchQuery.toLowerCase();
       const matchesSearch =
         exp.id.toLowerCase().includes(q) ||
-        exp.description.toLowerCase().includes(q) ||
+        (exp.description && exp.description.toLowerCase().includes(q)) ||
         exp.category.toLowerCase().includes(q) ||
         exp.paid_by.toLowerCase().includes(q) ||
         (exp.notes && exp.notes.toLowerCase().includes(q));
@@ -508,9 +508,9 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                   <div className="mb-2.5">
                     <h3
                       className="font-semibold text-foreground text-sm leading-snug line-clamp-2"
-                      title={exp.description}
+                      title={exp.description || exp.category}
                     >
-                      {exp.description}
+                      {exp.description || exp.category}
                     </h3>
                     <div className="flex items-baseline justify-between mt-1">
                       <div>
@@ -728,8 +728,8 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                           {exp.category}
                         </span>
                       </td>
-                      <td className="px-4 py-3 max-w-[200px] truncate" title={exp.description}>
-                        {exp.description}
+                      <td className="px-4 py-3 max-w-[200px] truncate text-muted-foreground" title={exp.description || ''}>
+                        {exp.description || '—'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap font-semibold text-rose-600 dark:text-rose-400">
                         {formatINR(exp.amount)}

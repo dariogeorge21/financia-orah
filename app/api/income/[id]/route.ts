@@ -51,11 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     if (typeof body.description === 'string') {
-      const description = body.description.trim();
-      if (!description) {
-        return NextResponse.json({ success: false, error: 'Description cannot be empty.' }, { status: 400 });
-      }
-      updatePayload.description = description;
+      updatePayload.description = body.description.trim();
     }
 
     if (body.amount !== undefined) {

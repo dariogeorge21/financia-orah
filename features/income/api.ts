@@ -34,7 +34,7 @@ export interface CreateIncomeInput {
   type: IncomeType;
   contributor: string;
   mobile_number?: string | null;
-  description: string;
+  description?: string | null;
   amount: number;
   money_type: MoneyType;
   is_handed_over?: boolean | null;

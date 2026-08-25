@@ -99,8 +99,8 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
       return;
     }
 
-    if (!finalType || !form.money_type || !form.contributor || !form.description) {
-      setError('Please fill in all required fields.');
+    if (!finalType || !form.money_type || !form.contributor) {
+      setError('Please fill in all required fields (Type, Contributor, Money Type).');
       return;
     }
 
@@ -117,7 +117,7 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           type: finalType as IncomeType,
           contributor: form.contributor.trim(),
           mobile_number: form.mobile_number.trim() || null,
-          description: form.description.trim(),
+          description: form.description.trim() || undefined,
           amount: amountNum,
           money_type: form.money_type,
           is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
@@ -259,13 +259,12 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="inc-desc">Description</Label>
+            <Label htmlFor="inc-desc">Description (Optional)</Label>
             <Input
               id="inc-desc"
-              placeholder="Brief description of payment"
+              placeholder="Optional description of payment"
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              required
             />
           </div>
 

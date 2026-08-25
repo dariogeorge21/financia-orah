@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddBudgetDialog } from './AddBudgetDialog';
+import { AddBudgetDialog } from './Budget/AddBudgetDialog';
 import { EditBudgetDialog } from './EditBudgetDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

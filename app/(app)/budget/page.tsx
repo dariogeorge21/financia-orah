@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import type { BudgetCategory, ExpenseRecord } from '@/lib/types';
-import { BudgetManager } from '@/components/finance/BudgetManager';
+import { BudgetManager } from '@/components/finance/budget/BudgetManager';
 
 export const dynamic = 'force-dynamic';
 

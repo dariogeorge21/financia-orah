@@ -20,9 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddIncomeDialog } from './income/AddIncomeDialog';
+import { AddIncomeDialog } from './AddIncomeDialog';
 import { EditIncomeDialog } from './EditIncomeDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteIncome, updateIncome } from '@/features/income';
 
@@ -39,8 +39,8 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 const ALL_TYPES: IncomeType[] = [
-  'Registration',
   'Donation',
+  'Registration',
   'Personal Commitment',
   'Finance Call',
   'Church',

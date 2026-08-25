@@ -25,8 +25,8 @@ import { formatINR } from '@/lib/calculations';
 import type { IncomeRecord, IncomeType, MoneyType } from '@/lib/types';
 
 const INCOME_TYPES: IncomeType[] = [
-  'Registration',
   'Donation',
+  'Registration',
   'Personal Commitment',
   'Finance Call',
   'Church',
@@ -52,7 +52,7 @@ export function EditIncomeDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [date, setDate] = useState('');
-  const [type, setType] = useState<string>('Registration');
+  const [type, setType] = useState<string>('Donation');
   const [otherType, setOtherType] = useState('');
   const [contributor, setContributor] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -66,12 +66,12 @@ export function EditIncomeDialog({
   useEffect(() => {
     if (income) {
       setDate(income.date || '');
-      const standardTypes = ['Registration', 'Donation', 'Personal Commitment', 'Finance Call', 'Church', 'Coupon', 'Sponsor'];
+      const standardTypes = ['Donation', 'Registration', 'Personal Commitment', 'Finance Call', 'Church', 'Coupon', 'Sponsor'];
       if (income.type && !standardTypes.includes(income.type)) {
         setType('Other');
         setOtherType(income.type === 'Other' ? '' : income.type);
       } else {
-        setType(income.type || 'Registration');
+        setType(income.type || 'Donation');
         setOtherType('');
       }
       setContributor(income.contributor || '');
@@ -162,7 +162,7 @@ export function EditIncomeDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-inc-type">Type</Label>
-              <Select value={type} onValueChange={(v) => setType(v ?? 'Registration')}>
+              <Select value={type} onValueChange={(v) => setType(v ?? 'Donation')}>
                 <SelectTrigger id="edit-inc-type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>

@@ -4,11 +4,12 @@
 export type MoneyType = 'Cash' | 'UPI';
 
 export type IncomeType =
-  | 'Registration'
   | 'Donation'
+  | 'Registration'
   | 'Personal Commitment'
   | 'Finance Call'
   | 'Commitment'
+  | 'Church'
   | 'Church/Convent'
   | 'Coupon'
   | 'Sponsor'

@@ -140,13 +140,13 @@ export function AddIncomeDialog({ onSuccess, trigger, moneyPosition }: AddIncome
         setOpen(false);
         setForm({
           date: new Date().toISOString().split('T')[0],
-          type: 'Registration',
+          type: 'Donation',
           other_type: '',
           contributor: '',
           mobile_number: '',
           description: '',
           amount: '',
-          money_type: 'Cash',
+          money_type: 'UPI',
           is_handed_over: true,
           notes: '',
           reference_id: '',

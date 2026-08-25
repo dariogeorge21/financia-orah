@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -122,23 +123,32 @@ const navItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [navigatingHref, setNavigatingHref] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     setNavigatingHref(null);
-  }, [pathname]);
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
 
   const handleNavClick = (href: string) => {
     const isCurrentActive = href === '/' ? pathname === '/' : pathname === href;
     if (!isCurrentActive) {
       setNavigatingHref(href);
+    } else if (isMobile) {
+      setOpenMobile(false);
     }
   };
 
   async function handleLogout() {
     try {
       setIsLoggingOut(true);
+      if (isMobile) {
+        setOpenMobile(false);
+      }
       const supabase = createClient();
       await supabase.auth.signOut();
       router.push('/login');

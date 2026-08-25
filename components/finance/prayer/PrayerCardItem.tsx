@@ -8,17 +8,9 @@ import { formatINR } from '@/lib/calculations';
 
 interface PrayerCardItemProps {
   request: PrayerRequestRecord;
-  onEdit?: (request: PrayerRequestRecord) => void;
-  onDelete?: (request: PrayerRequestRecord) => void;
-  onStatusChange?: (request: PrayerRequestRecord, newStatus: 'Active' | 'Answered' | 'Archived') => void;
 }
 
-export function PrayerCardItem({
-  request,
-  onEdit,
-  onDelete,
-  onStatusChange,
-}: PrayerCardItemProps) {
+export function PrayerCardItem({ request }: PrayerCardItemProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -35,21 +27,10 @@ export function PrayerCardItem({
     }
   };
 
-  const isAnswered = request.status === 'Answered';
-  const isArchived = request.status === 'Archived';
-
   return (
-    <div
-      className={`group relative flex flex-col justify-between rounded-2xl border p-4 sm:p-5 shadow-xs transition-all duration-200 hover:shadow-md ${
-        isAnswered
-          ? 'border-emerald-500/30 bg-emerald-500/[0.03] hover:border-emerald-500/50'
-          : isArchived
-          ? 'border-border/40 bg-muted/20 opacity-75'
-          : 'border-border/60 bg-card hover:border-primary/40'
-      }`}
-    >
+    <div className="group relative flex flex-col justify-between rounded-2xl border border-border/60 bg-card p-4 sm:p-5 shadow-xs transition-all duration-200 hover:border-primary/40 hover:shadow-md">
       <div>
-        {/* Header: Person Name, Source & Status */}
+        {/* Header: Person Name, Source & Amount */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -59,11 +40,6 @@ export function PrayerCardItem({
                   {request.source}
                 </Badge>
               )}
-              {isAnswered && (
-                <Badge className="bg-emerald-500 text-white text-[10px] py-0 px-1.5">
-                  ✓ Answered
-                </Badge>
-              )}
               {request.amount !== undefined && request.amount !== null && request.amount > 0 && (
                 <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                   {formatINR(request.amount)}
@@ -71,9 +47,9 @@ export function PrayerCardItem({
               )}
             </div>
 
-            {/* Phone Number */}
+            {/* Phone Number & WhatsApp */}
             {request.mobile_number ? (
-              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                 <span className="flex items-center gap-1">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -168,51 +144,6 @@ export function PrayerCardItem({
             <p className="mt-2 text-[11px] italic text-muted-foreground border-t border-border/40 pt-1.5">
               Note: {request.notes}
             </p>
-          )}
-        </div>
-      </div>
-
-      {/* Footer Actions */}
-      <div className="mt-3.5 flex items-center justify-between gap-2 border-t border-border/40 pt-2.5 text-xs">
-        <div className="flex items-center gap-1">
-          {onStatusChange && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() =>
-                onStatusChange(request, isAnswered ? 'Active' : 'Answered')
-              }
-              className={`h-6 px-2 text-[11px] font-medium ${
-                isAnswered
-                  ? 'text-emerald-600 hover:bg-emerald-500/10'
-                  : 'text-muted-foreground hover:text-emerald-600'
-              }`}
-            >
-              {isAnswered ? 'Mark Active' : 'Mark Answered'}
-            </Button>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1">
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => onEdit(request)}
-              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              Edit
-            </Button>
-          )}
-          {onDelete && (
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={() => onDelete(request)}
-              className="h-6 px-2 text-[11px] text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-            >
-              Delete
-            </Button>
           )}
         </div>
       </div>

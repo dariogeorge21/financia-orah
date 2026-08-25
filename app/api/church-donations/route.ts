@@ -163,6 +163,7 @@ export async function POST(request: Request) {
         is_handed_over: isHandedOver,
         screenshot_link: screenshotLink || null,
         notes: combinedNotes || null,
+        prayer_request: prayerRequest || null,
         reference_id: nextId,
         commitment_id: nextId,
       });

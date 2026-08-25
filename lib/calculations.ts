@@ -629,8 +629,7 @@ export function formatPrayerListText(
 
     grp.requests.forEach((req, idx) => {
       const phone = req.mobile_number ? ` (📱 ${req.mobile_number})` : '';
-      const statusBadge = req.status === 'Answered' ? ' [✓ Answered]' : '';
-      output += `${idx + 1}. ${req.person_name}${phone}${statusBadge}\n`;
+      output += `${idx + 1}. ${req.person_name}${phone}\n`;
       output += `   • Intention: ${req.prayer_request}\n`;
       if (req.notes) {
         output += `   • Note: ${req.notes}\n`;

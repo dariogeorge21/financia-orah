@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { PrayerRequestRecord, PrayerStatus } from '@/lib/types';
+import type { PrayerRequestRecord } from '@/lib/types';
 import {
   groupPrayerRequestsByDate,
   formatPrayerListText,
@@ -14,8 +14,6 @@ import { ViewModeToggle } from '@/components/finance/ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { PrayerCardItem } from './PrayerCardItem';
 import { AddPrayerRequestDialog } from './AddPrayerRequestDialog';
-import { EditPrayerRequestDialog } from './EditPrayerRequestDialog';
-import { deletePrayerRequest, updatePrayerRequest } from '@/features/prayer-requests';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,16 +28,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -63,14 +53,8 @@ export function PrayerRequestManager({
 
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateRangeFilter, setDateRangeFilter] = useState<string>('ALL');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
-
-  // Modals & Dialogs
-  const [editingRequest, setEditingRequest] = useState<PrayerRequestRecord | null>(null);
-  const [deletingRequest, setDeletingRequest] = useState<PrayerRequestRecord | null>(null);
-  const [isDeleting, startDelete] = useTransition();
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   const showCopyToast = (msg: string) => {
@@ -93,44 +77,11 @@ export function PrayerRequestManager({
     });
   };
 
-  // Handle status toggle
-  const handleStatusChange = (
-    req: PrayerRequestRecord,
-    newStatus: 'Active' | 'Answered' | 'Archived'
-  ) => {
-    startRefresh(async () => {
-      try {
-        await updatePrayerRequest(req.id, { status: newStatus as PrayerStatus });
-        setRequests((prev) =>
-          prev.map((r) => (r.id === req.id ? { ...r, status: newStatus as PrayerStatus } : r))
-        );
-        router.refresh();
-      } catch (err) {
-        console.error('Failed to update status:', err);
-      }
-    });
-  };
-
-  // Handle delete
-  const handleDelete = () => {
-    if (!deletingRequest) return;
-    startDelete(async () => {
-      try {
-        await deletePrayerRequest(deletingRequest.id);
-        setRequests((prev) => prev.filter((r) => r.id !== deletingRequest.id));
-        setDeletingRequest(null);
-        router.refresh();
-      } catch (err) {
-        console.error('Failed to delete prayer request:', err);
-      }
-    });
-  };
-
   // Filtered requests
   const filteredRequests = useMemo(() => {
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
+
     // 7 days ago
     const weekAgo = new Date();
     weekAgo.setDate(now.getDate() - 7);
@@ -140,11 +91,6 @@ export function PrayerRequestManager({
     const currentMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     return requests.filter((req) => {
-      // Status Filter
-      if (statusFilter !== 'ALL' && req.status !== statusFilter) {
-        return false;
-      }
-
       // Date Filter
       if (dateRangeFilter === 'TODAY' && req.date !== todayKey) {
         return false;
@@ -178,10 +124,10 @@ export function PrayerRequestManager({
 
       return true;
     });
-  }, [requests, statusFilter, dateRangeFilter, searchQuery]);
+  }, [requests, dateRangeFilter, searchQuery]);
 
   // Grouped results & overall summary
-  const { groups, summary } = useMemo(() => {
+  const { groups } = useMemo(() => {
     const sorted = [...filteredRequests].sort((a, b) => {
       if (sortOrder === 'asc') {
         return (a.date || '').localeCompare(b.date || '');
@@ -215,11 +161,11 @@ export function PrayerRequestManager({
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Prayer Requests</h1>
             <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20">
-              Intercession & Intentions
+              Intercessory Intentions
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Pray for all benefactors, supporters, and people who provide income for the meet.
+            Pray for all benefactors, supporters, and individuals who provide income and support for the program.
           </p>
         </div>
 
@@ -256,7 +202,7 @@ export function PrayerRequestManager({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   >
-                    <polyline points="6 9 12 15 18 9" />
+                    <path d="m6 9 6 6 6-6" />
                   </svg>
                 </Button>
               }
@@ -326,7 +272,7 @@ export function PrayerRequestManager({
             {isRefreshing ? 'Syncing…' : 'Sync'}
           </Button>
 
-          {/* Add Prayer Request Dialog */}
+          {/* Direct Prayer Request Dialog */}
           <AddPrayerRequestDialog onSuccess={handleRefresh} />
         </div>
       </div>
@@ -353,10 +299,9 @@ export function PrayerRequestManager({
         <KpiCard
           title="Total Prayer Requests"
           value={String(globalSummary.totalRequests)}
-          subtitle={`${globalSummary.totalPeople} unique supporters/people`}
+          subtitle="Intentions to pray for"
           accentClass="from-indigo-500 to-violet-600"
           trend="neutral"
-          trendLabel={`${globalSummary.totalDaysWithRequests} days`}
           icon={
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -375,9 +320,35 @@ export function PrayerRequestManager({
         />
 
         <KpiCard
-          title="Today's Prayers"
+          title="Unique Benefactors"
+          value={String(globalSummary.totalPeople)}
+          subtitle="Distinct people / families"
+          accentClass="from-emerald-500 to-teal-600"
+          trend="up"
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          }
+        />
+
+        <KpiCard
+          title="Today's Intentions"
           value={String(globalSummary.todayRequests)}
-          subtitle="New intentions received today"
+          subtitle="Received today"
           accentClass="from-blue-500 to-cyan-600"
           trend="up"
           trendLabel="Today"
@@ -402,12 +373,11 @@ export function PrayerRequestManager({
         />
 
         <KpiCard
-          title="In Active Prayer"
-          value={String(globalSummary.activeRequests)}
-          subtitle="Currently on the prayer list"
+          title="Days Grouped"
+          value={String(globalSummary.totalDaysWithRequests)}
+          subtitle="Chronological prayer groups"
           accentClass="from-amber-500 to-orange-600"
           trend="neutral"
-          trendLabel="Active"
           icon={
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -422,30 +392,6 @@ export function PrayerRequestManager({
             >
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 14 14" />
-            </svg>
-          }
-        />
-
-        <KpiCard
-          title="Answered Prayers"
-          value={String(globalSummary.answeredRequests)}
-          subtitle="Praise reports & blessings"
-          accentClass="from-emerald-500 to-teal-600"
-          trend="up"
-          trendLabel="Answered"
-          icon={
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
             </svg>
           }
         />
@@ -490,19 +436,6 @@ export function PrayerRequestManager({
 
           {/* Controls row */}
           <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
-            {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v ?? 'ALL')}>
-              <SelectTrigger className="text-xs h-8 min-w-[120px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Statuses</SelectItem>
-                <SelectItem value="Active">Active ({globalSummary.activeRequests})</SelectItem>
-                <SelectItem value="Answered">Answered ({globalSummary.answeredRequests})</SelectItem>
-                <SelectItem value="Archived">Archived ({globalSummary.archivedRequests})</SelectItem>
-              </SelectContent>
-            </Select>
-
             {/* Date Range Preset */}
             <Select value={dateRangeFilter} onValueChange={(v) => setDateRangeFilter(v ?? 'ALL')}>
               <SelectTrigger className="text-xs h-8 min-w-[120px]">
@@ -543,7 +476,7 @@ export function PrayerRequestManager({
               <span>{sortOrder === 'desc' ? 'Newest' : 'Oldest'}</span>
             </Button>
 
-            {/* View Mode Toggle (Cards for mobile default, Table for desktop default) */}
+            {/* View Mode Toggle */}
             <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
           </div>
         </div>
@@ -552,37 +485,36 @@ export function PrayerRequestManager({
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/40">
           <span>
             Showing <strong className="text-foreground">{filteredRequests.length}</strong> prayer{' '}
-            {filteredRequests.length === 1 ? 'request' : 'requests'} across{' '}
+            {filteredRequests.length === 1 ? 'intention' : 'intentions'} across{' '}
             <strong className="text-foreground">{groups.length}</strong> {groups.length === 1 ? 'day' : 'days'}
           </span>
-          {(searchQuery || statusFilter !== 'ALL' || dateRangeFilter !== 'ALL') && (
+          {(searchQuery || dateRangeFilter !== 'ALL') && (
             <Button
               variant="ghost"
               size="xs"
               onClick={() => {
                 setSearchQuery('');
-                setStatusFilter('ALL');
                 setDateRangeFilter('ALL');
               }}
-              className="text-[11px] text-primary h-6 px-1.5"
+              className="text-[11px] h-6 px-1.5 text-muted-foreground hover:text-foreground"
             >
-              Reset filters
+              Reset Filters
             </Button>
           )}
         </div>
       </div>
 
-      {/* Main Content: Grouped by Date */}
+      {/* Main Content Area */}
       {groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/80 p-12 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground text-xl">
-            🙏
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <span className="text-2xl">🙏</span>
           </div>
           <h3 className="mt-3 text-base font-semibold text-foreground">No prayer requests found</h3>
           <p className="mt-1 text-xs text-muted-foreground max-w-sm mx-auto">
-            {searchQuery || statusFilter !== 'ALL' || dateRangeFilter !== 'ALL'
+            {searchQuery || dateRangeFilter !== 'ALL'
               ? 'No prayer requests match your current filters. Try resetting the filters.'
-              : 'Add your first prayer request or record prayer intentions when taking income!'}
+              : 'Add your first prayer request or record prayer intentions when receiving income, coupons, commitments, calls, or church donations!'}
           </p>
         </div>
       ) : (
@@ -610,7 +542,7 @@ export function PrayerRequestManager({
                 </div>
 
                 {/* Group-wise Copy Buttons */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <Button
                     variant="ghost"
                     size="xs"
@@ -677,13 +609,7 @@ export function PrayerRequestManager({
                 /* Cards View */
                 <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
                   {group.requests.map((req) => (
-                    <PrayerCardItem
-                      key={req.id}
-                      request={req}
-                      onEdit={(r) => setEditingRequest(r)}
-                      onDelete={(r) => setDeletingRequest(r)}
-                      onStatusChange={handleStatusChange}
-                    />
+                    <PrayerCardItem key={req.id} request={req} />
                   ))}
                 </div>
               ) : (
@@ -693,26 +619,23 @@ export function PrayerRequestManager({
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/40 hover:bg-muted/40">
-                          <TableHead className="w-[180px] text-xs font-bold uppercase tracking-wider">
+                          <TableHead className="w-[200px] text-xs font-bold uppercase tracking-wider">
                             Person & Phone
                           </TableHead>
-                          <TableHead className="w-[120px] text-xs font-bold uppercase tracking-wider">
+                          <TableHead className="w-[140px] text-xs font-bold uppercase tracking-wider">
                             Source
                           </TableHead>
                           <TableHead className="text-xs font-bold uppercase tracking-wider">
                             Prayer Intention
                           </TableHead>
-                          <TableHead className="w-[100px] text-xs font-bold uppercase tracking-wider text-center">
-                            Status
-                          </TableHead>
-                          <TableHead className="w-[140px] text-right text-xs font-bold uppercase tracking-wider">
-                            Actions
+                          <TableHead className="w-[100px] text-right text-xs font-bold uppercase tracking-wider">
+                            Action
                           </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {group.requests.map((req) => {
-                          const isAnswered = req.status === 'Answered';
+                          const phoneClean = req.mobile_number?.replace(/\D/g, '');
                           return (
                             <TableRow key={req.id} className="hover:bg-muted/20 text-xs">
                               {/* Person & Phone */}
@@ -722,9 +645,24 @@ export function PrayerRequestManager({
                                     {req.person_name}
                                   </span>
                                   {req.mobile_number ? (
-                                    <span className="text-[11px] text-muted-foreground font-mono">
-                                      {req.mobile_number}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <a
+                                        href={`tel:${req.mobile_number}`}
+                                        className="text-[11px] text-muted-foreground font-mono hover:text-primary"
+                                      >
+                                        {req.mobile_number}
+                                      </a>
+                                      {phoneClean && (
+                                        <a
+                                          href={`https://wa.me/${phoneClean}`}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline"
+                                        >
+                                          WA ↗
+                                        </a>
+                                      )}
+                                    </div>
                                   ) : (
                                     <span className="text-[10px] text-muted-foreground/60 italic">
                                       No phone
@@ -741,7 +679,7 @@ export function PrayerRequestManager({
                                   </Badge>
                                   {req.amount !== undefined && req.amount !== null && req.amount > 0 && (
                                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                      {req.amount ? `₹${req.amount.toLocaleString()}` : ''}
+                                      ₹{req.amount.toLocaleString()}
                                     </span>
                                   )}
                                 </div>
@@ -761,57 +699,22 @@ export function PrayerRequestManager({
                                 </div>
                               </TableCell>
 
-                              {/* Status */}
-                              <TableCell className="text-center">
-                                <Badge
-                                  className={`text-[10px] py-0 px-1.5 ${
-                                    isAnswered
-                                      ? 'bg-emerald-500 text-white'
-                                      : req.status === 'Archived'
-                                      ? 'bg-muted text-muted-foreground'
-                                      : 'bg-primary/10 text-primary border-primary/20'
-                                  }`}
-                                >
-                                  {req.status}
-                                </Badge>
-                              </TableCell>
-
                               {/* Actions */}
                               <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    onClick={() =>
-                                      copyToClipboard(
-                                        `${req.person_name}${req.mobile_number ? ` (${req.mobile_number})` : ''}\nIntention: ${req.prayer_request}`,
-                                        `Copied ${req.person_name}'s request!`
-                                      )
-                                    }
-                                    className="h-7 px-2 text-xs"
-                                    title="Copy"
-                                  >
-                                    Copy
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    onClick={() => setEditingRequest(req)}
-                                    className="h-7 px-2 text-xs"
-                                    title="Edit"
-                                  >
-                                    Edit
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="xs"
-                                    onClick={() => setDeletingRequest(req)}
-                                    className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                                    title="Delete"
-                                  >
-                                    ✕
-                                  </Button>
-                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() =>
+                                    copyToClipboard(
+                                      `${req.person_name}${req.mobile_number ? ` (${req.mobile_number})` : ''}\nIntention: ${req.prayer_request}`,
+                                      `Copied ${req.person_name}'s intention!`
+                                    )
+                                  }
+                                  className="h-7 px-2 text-xs"
+                                  title="Copy intention"
+                                >
+                                  Copy
+                                </Button>
                               </TableCell>
                             </TableRow>
                           );
@@ -824,54 +727,6 @@ export function PrayerRequestManager({
             </div>
           ))}
         </div>
-      )}
-
-      {/* Edit Dialog */}
-      {editingRequest && (
-        <EditPrayerRequestDialog
-          request={editingRequest}
-          open={Boolean(editingRequest)}
-          onOpenChange={(open) => {
-            if (!open) setEditingRequest(null);
-          }}
-          onSuccess={handleRefresh}
-        />
-      )}
-
-      {/* Delete Confirmation Dialog */}
-      {deletingRequest && (
-        <Dialog open={Boolean(deletingRequest)} onOpenChange={() => setDeletingRequest(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="text-base">Delete Prayer Request?</DialogTitle>
-              <DialogDescription className="text-xs">
-                Are you sure you want to remove the prayer request for{' '}
-                <strong className="text-foreground">{deletingRequest.person_name}</strong>?
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex items-center justify-end gap-2 pt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeletingRequest(null)}
-                disabled={isDeleting}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-xs"
-              >
-                {isDeleting ? 'Deleting…' : 'Delete'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       )}
     </div>
   );

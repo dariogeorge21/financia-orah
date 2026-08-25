@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { AddFinanceCallDialog } from './AddFinanceCallDialog';
 import { EditFinanceCallDialog } from './EditFinanceCallDialog';
-import { ViewModeToggle } from './ViewModeToggle';
+import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import {
   fetchFinanceCallsData,
@@ -308,11 +308,10 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
-                className={`rounded-md px-2.5 py-1 font-medium transition-all ${
-                  statusFilter === st
+                className={`rounded-md px-2.5 py-1 font-medium transition-all ${statusFilter === st
                     ? 'bg-card text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
-                }`}
+                  }`}
               >
                 {st === 'ALL' ? 'All' : st}
               </button>
@@ -407,11 +406,10 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                             type="button"
                             onClick={() => handleToggleHandover(fc)}
                             title={fc.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
-                            className={`block text-[9px] font-medium mt-0.5 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                              fc.is_handed_over === false
+                            className={`block text-[9px] font-medium mt-0.5 px-1.5 py-0.5 rounded cursor-pointer transition-colors ${fc.is_handed_over === false
                                 ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
                                 : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'
-                            }`}
+                              }`}
                           >
                             {fc.is_handed_over === false ? '⏳ Pending Handover' : '✓ Cash In Hand'}
                           </button>
@@ -433,13 +431,12 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                       </div>
                       <Progress
                         value={pct}
-                        className={`h-1.5 ${
-                          fc.status === 'Fully Received'
+                        className={`h-1.5 ${fc.status === 'Fully Received'
                             ? '[&>div]:bg-emerald-500'
                             : fc.status === 'Partially Received'
-                            ? '[&>div]:bg-amber-500'
-                            : '[&>div]:bg-rose-500'
-                        }`}
+                              ? '[&>div]:bg-amber-500'
+                              : '[&>div]:bg-rose-500'
+                          }`}
                       />
                     </div>
                   </div>
@@ -562,11 +559,10 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                               type="button"
                               onClick={() => handleToggleHandover(fc)}
                               title={fc.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
-                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
-                                fc.money_type === 'Cash' && fc.is_handed_over === false
+                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${fc.money_type === 'Cash' && fc.is_handed_over === false
                                   ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
                                   : 'bg-muted text-muted-foreground hover:bg-accent'
-                              }`}
+                                }`}
                             >
                               {fc.money_type}
                               {fc.money_type === 'Cash' && (fc.is_handed_over === false ? ' (⏳ Pending)' : ' (✓ Handed)')}
@@ -581,13 +577,12 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                         <div className="flex items-center gap-2">
                           <Progress
                             value={pct}
-                            className={`h-1.5 flex-1 ${
-                              fc.status === 'Fully Received'
+                            className={`h-1.5 flex-1 ${fc.status === 'Fully Received'
                                 ? '[&>div]:bg-emerald-500'
                                 : fc.status === 'Partially Received'
-                                ? '[&>div]:bg-amber-500'
-                                : '[&>div]:bg-rose-500'
-                            }`}
+                                  ? '[&>div]:bg-amber-500'
+                                  : '[&>div]:bg-rose-500'
+                              }`}
                           />
                           <span className="text-xs text-muted-foreground w-8 text-right font-medium">
                             {pct}%

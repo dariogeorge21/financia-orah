@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AddCouponDialog } from './AddCouponDialog';
+import { AddCouponDialog } from './coupons/AddCouponDialog';
 import { EditCouponDialog } from './EditCouponDialog';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';

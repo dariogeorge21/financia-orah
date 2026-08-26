@@ -69,7 +69,7 @@ export default function RootLayout({
       className={cn("h-full antialiased", figtree.variable, geistMono.variable, "font-sans")}
     >
       <head>
-        <meta name="apple-mobile-web-app-title" content="Finance Orah" />
+        <meta name="apple-mobile-web-app-title" content="Orah Financia" />
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider

@@ -58,6 +58,7 @@ export function AddPersonalCommitmentDialog({
     caller_name: '',
     promised: '',
     received: '',
+    due_date: '',
     money_type: 'UPI' as 'Cash' | 'UPI',
     is_handed_over: false,
     screenshot_link: '',
@@ -67,6 +68,31 @@ export function AddPersonalCommitmentDialog({
 
   function set(key: string, value: unknown) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function getFutureDate(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatDisplayDate(dateStr: string): string {
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (!y || !m || !d) return dateStr;
+      const date = new Date(y, m - 1, d);
+      return date.toLocaleDateString('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return dateStr;
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -83,19 +109,15 @@ export function AddPersonalCommitmentDialog({
     let finalStatus: CommitmentStatus = 'Pending';
 
     if (paymentStatus === 'Fully Received') {
-      finalReceived = promisedNum;
+      finalReceived = form.received ? parseFloat(form.received) : promisedNum;
       finalStatus = 'Fully Received';
     } else if (paymentStatus === 'Partially Received') {
       finalReceived = form.received ? parseFloat(form.received) : 0;
       if (isNaN(finalReceived) || finalReceived <= 0) {
-        setError('Please enter a valid received amount greater than 0 for partial payment.');
+        setError('Please enter a valid received amount greater than 0.');
         return;
       }
-      if (finalReceived > promisedNum) {
-        setError(`Received amount (${formatINR(finalReceived)}) cannot be greater than the promised amount (${formatINR(promisedNum)}).`);
-        return;
-      }
-      if (finalReceived === promisedNum) {
+      if (finalReceived >= promisedNum) {
         finalStatus = 'Fully Received';
       } else {
         finalStatus = 'Partially Received';
@@ -113,6 +135,7 @@ export function AddPersonalCommitmentDialog({
           caller_name: form.caller_name.trim() || null,
           promised: promisedNum,
           received: finalReceived,
+          due_date: form.due_date.trim() || null,
           money_type: finalReceived > 0 ? form.money_type : undefined,
           is_handed_over: finalReceived > 0 && form.money_type === 'Cash' ? form.is_handed_over : true,
           screenshot_link: form.screenshot_link.trim() || null,
@@ -147,6 +170,7 @@ export function AddPersonalCommitmentDialog({
           caller_name: '',
           promised: '',
           received: '',
+          due_date: '',
           money_type: 'UPI',
           is_handed_over: false,
           screenshot_link: '',
@@ -192,7 +216,7 @@ export function AddPersonalCommitmentDialog({
         <DialogHeader>
           <DialogTitle>Add Personal Commitment</DialogTitle>
           <DialogDescription>
-            Record a new individual pledge. If already paid (partially or fully), funds are automatically logged to Incomes and Dashboard.
+            Record a new individual pledge. Set a target follow-up date and log funds automatically to Incomes and Dashboard when received.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
@@ -250,6 +274,64 @@ export function AddPersonalCommitmentDialog({
             />
           </div>
 
+          {/* Time Period / Promised By Date with Quick Date Setters */}
+          <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="pcom-due-date" className="text-xs font-medium text-foreground">
+                Promised By / Follow-up Date
+              </Label>
+              {form.due_date && (
+                <span className="text-[11px] font-semibold text-primary">
+                  {formatDisplayDate(form.due_date)}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Input
+                id="pcom-due-date"
+                type="date"
+                value={form.due_date}
+                onChange={(e) => set('due_date', e.target.value)}
+                className="text-xs h-8 bg-background"
+              />
+              {form.due_date && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => set('due_date', '')}
+                  className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+
+            {/* Quick date setters */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] text-muted-foreground font-medium mr-1">Quick Set:</span>
+              {[
+                { label: '+3 Days', days: 3 },
+                { label: '+1 Week', days: 7 },
+                { label: '+2 Weeks', days: 14 },
+                { label: '+1 Month', days: 30 },
+              ].map((q) => (
+                <button
+                  key={q.label}
+                  type="button"
+                  onClick={() => set('due_date', getFutureDate(q.days))}
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-md border border-border/70 bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              By this date you can follow up with the contributor to collect their pledge.
+            </p>
+          </div>
+
           {/* Payment Received Status selection */}
           <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
             <Label className="text-xs font-medium text-foreground">
@@ -259,7 +341,7 @@ export function AddPersonalCommitmentDialog({
               {[
                 { value: 'Pending', label: 'Not Yet' },
                 { value: 'Fully Received', label: 'Paid in Full' },
-                { value: 'Partially Received', label: 'Partially Paid' },
+                { value: 'Partially Received', label: 'Partial / Custom' },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -270,7 +352,7 @@ export function AddPersonalCommitmentDialog({
                       set('received', form.promised);
                     }
                   }}
-                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                  className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all cursor-pointer ${
                     paymentStatus === opt.value
                       ? opt.value === 'Fully Received'
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
@@ -286,7 +368,7 @@ export function AddPersonalCommitmentDialog({
             </div>
 
             {paymentStatus === 'Partially Received' && (
-              <div className="space-y-1.5 pt-2 animate-in fade-in-50 duration-200">
+              <div className="space-y-2 pt-2 animate-in fade-in-50 duration-200">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="pcom-partial-received" className="text-xs">
                     Amount Received Now (₹)
@@ -301,13 +383,39 @@ export function AddPersonalCommitmentDialog({
                   id="pcom-partial-received"
                   type="number"
                   min="1"
-                  max={form.promised ? parseFloat(form.promised) : undefined}
                   step="1"
-                  placeholder="e.g. 2000"
+                  placeholder="Enter amount (can be less or more than promised)"
                   value={form.received}
                   onChange={(e) => set('received', e.target.value)}
+                  className="bg-background"
                   required
                 />
+
+                {/* Overpayment banner & quick-adjust option */}
+                {form.promised &&
+                  form.received &&
+                  parseFloat(form.received) > parseFloat(form.promised) && (
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 p-2.5 text-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1">
+                          <span>🎉</span> Overpayment: +{formatINR(parseFloat(form.received) - parseFloat(form.promised))} Surplus!
+                        </span>
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                          {Math.round((parseFloat(form.received) / parseFloat(form.promised)) * 100)}%
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800 dark:text-emerald-200">
+                        Contributor is paying more than the original pledge ({formatINR(parseFloat(form.promised))}).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => set('promised', form.received)}
+                        className="text-xs font-semibold px-2 py-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors cursor-pointer"
+                      >
+                        Adjust Promised Amount to {formatINR(parseFloat(form.received))}
+                      </button>
+                    </div>
+                  )}
               </div>
             )}
 

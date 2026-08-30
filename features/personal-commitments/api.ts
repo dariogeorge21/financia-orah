@@ -43,6 +43,7 @@ export interface CreatePersonalCommitmentInput {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   date?: string;
+  due_date?: string | null;
   status?: CommitmentStatus;
   notes?: string | null;
   prayer_request?: string | null;
@@ -58,6 +59,7 @@ export interface UpdatePersonalCommitmentInput {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   date?: string;
+  due_date?: string | null;
   status?: CommitmentStatus;
   notes?: string | null;
   prayer_request?: string | null;

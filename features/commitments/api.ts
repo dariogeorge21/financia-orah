@@ -38,6 +38,7 @@ export interface CreateCommitmentInput {
   mobile_number?: string | null;
   promised: number;
   received?: number;
+  due_date?: string | null;
   status?: CommitmentStatus;
   notes?: string | null;
 }
@@ -47,6 +48,7 @@ export interface UpdateCommitmentInput {
   mobile_number?: string | null;
   promised?: number;
   received?: number;
+  due_date?: string | null;
   status?: CommitmentStatus;
   notes?: string | null;
 }

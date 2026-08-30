@@ -39,6 +39,28 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
   const [isDeleting, startDelete] = useTransition();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
+
+  function formatDisplayDate(dateStr: string): string {
+    try {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      if (!y || !m || !d) return dateStr;
+      const date = new Date(y, m - 1, d);
+      return date.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+      });
+    } catch {
+      return dateStr;
+    }
+  }
+
   // Compute summary values
   const active = useMemo(
     () => commitments.filter((c) => c.status !== 'Cancelled'),
@@ -52,7 +74,14 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
     () => active.reduce((s, c) => s + Number(c.received), 0),
     [active]
   );
-  const totalPending = Math.max(0, totalPromised - totalReceived);
+  const totalPending = useMemo(
+    () => active.reduce((s, c) => s + Math.max(0, Number(c.promised) - Number(c.received)), 0),
+    [active]
+  );
+  const totalSurplus = useMemo(
+    () => active.reduce((s, c) => s + Math.max(0, Number(c.received) - Number(c.promised)), 0),
+    [active]
+  );
   const fulfillmentPct = totalPromised > 0 ? Math.round((totalReceived / totalPromised) * 100) : 0;
 
   {/* Filtered list */}
@@ -64,13 +93,19 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
         c.id.toLowerCase().includes(q) ||
         (c.mobile_number && c.mobile_number.includes(q)) ||
         (c.caller_name && c.caller_name.toLowerCase().includes(q)) ||
+        (c.due_date && c.due_date.includes(q)) ||
         (c.notes && c.notes.toLowerCase().includes(q));
 
-      const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      const matchesStatus =
+        statusFilter === 'ALL'
+          ? true
+          : statusFilter === 'Overdue'
+          ? Boolean(c.due_date && c.due_date < todayStr && c.status !== 'Fully Received' && c.status !== 'Cancelled')
+          : c.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [commitments, searchQuery, statusFilter]);
+  }, [commitments, searchQuery, statusFilter, todayStr]);
 
   // Handle Handover Toggle
   async function handleToggleHandover(com: PersonalCommitmentRecord) {
@@ -198,13 +233,16 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
           {
             label: 'Total Received',
             value: formatINR(totalReceived),
-            subtext: `${fulfillmentPct}% fulfilled`,
+            subtext:
+              totalSurplus > 0
+                ? `${fulfillmentPct}% fulfilled (+${formatINR(totalSurplus)} surplus)`
+                : `${fulfillmentPct}% fulfilled`,
             cls: 'text-emerald-600 dark:text-emerald-400',
           },
           {
             label: 'Still Pending',
             value: formatINR(totalPending),
-            subtext: `${active.filter((c) => c.status !== 'Fully Received').length} donors pending`,
+            subtext: `${active.filter((c) => Number(c.received) < Number(c.promised)).length} donors pending`,
             cls: 'text-rose-600 dark:text-rose-400',
           },
           {
@@ -245,7 +283,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
               <path d="m21 21-4.3-4.3" />
             </svg>
             <Input
-              placeholder="Search donor name, mobile, or note..."
+              placeholder="Search donor, mobile, note, or date..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 text-xs"
@@ -266,19 +304,30 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
         <div className="flex flex-wrap items-center gap-2">
           {/* Status Filter Buttons */}
           <div className="flex flex-wrap items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
-            {['ALL', 'Pending', 'Partially Received', 'Fully Received', 'Cancelled'].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                className={`rounded-md px-2.5 py-1 font-medium transition-all ${
-                  statusFilter === st
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {st === 'ALL' ? 'All' : st}
-              </button>
-            ))}
+            {['ALL', 'Pending', 'Overdue', 'Partially Received', 'Fully Received', 'Cancelled'].map((st) => {
+              const overdueCount = active.filter(
+                (c) => c.due_date && c.due_date < todayStr && c.status !== 'Fully Received'
+              ).length;
+
+              return (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`rounded-md px-2.5 py-1 font-medium transition-all cursor-pointer ${
+                    statusFilter === st
+                      ? 'bg-card text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {st === 'ALL' ? 'All' : st}
+                  {st === 'Overdue' && overdueCount > 0 && (
+                    <span className="ml-1 text-[10px] bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 rounded-full font-bold">
+                      {overdueCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* View Mode Toggle */}
@@ -325,7 +374,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                   </div>
 
                   {/* Person Name & Receipt */}
-                  <div className="mb-3">
+                  <div className="mb-2">
                     <div className="flex items-center gap-1.5">
                       <h3 className="font-semibold text-foreground text-sm leading-snug truncate" title={com.person_name}>
                         {com.person_name}
@@ -350,6 +399,34 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                     )}
                   </div>
 
+                  {/* Due Date Indicator */}
+                  {com.due_date && (
+                    <div className="mb-2.5 flex items-center gap-1.5 flex-wrap">
+                      {com.status !== 'Fully Received' && com.status !== 'Cancelled' ? (
+                        com.due_date < todayStr ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            Overdue: Follow up by {formatDisplayDate(com.due_date)}
+                          </span>
+                        ) : com.due_date === todayStr ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                            Due Today ({formatDisplayDate(com.due_date)})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Promised by: {formatDisplayDate(com.due_date)}
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                          ✓ Pledged for {formatDisplayDate(com.due_date)}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Financial Breakdown */}
                   <div className="rounded-xl bg-muted/30 p-2.5 space-y-2 mb-3">
                     <div className="grid grid-cols-3 gap-1 text-center">
@@ -364,6 +441,11 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                         <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                           {formatINR(com.received)}
                         </span>
+                        {Number(com.received) > Number(com.promised) && (
+                          <span className="block text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-1 py-0.5 rounded mt-0.5">
+                            +{formatINR(Number(com.received) - Number(com.promised))} surplus
+                          </span>
+                        )}
                         {com.received > 0 && com.money_type === 'Cash' && (
                           <button
                             type="button"
@@ -391,10 +473,12 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                     <div>
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
                         <span>Fulfillment</span>
-                        <span className="font-medium text-foreground">{pct}%</span>
+                        <span className="font-medium text-foreground">
+                          {pct}% {pct > 100 && '🎉'}
+                        </span>
                       </div>
                       <Progress
-                        value={pct}
+                        value={Math.min(100, pct)}
                         className={`h-1.5 ${
                           com.status === 'Fully Received'
                             ? '[&>div]:bg-emerald-500'
@@ -450,7 +534,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Person Name', 'Mobile', 'Caller', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
+                  {['ID', 'Person Name', 'Mobile', 'Caller', 'Promised By', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
@@ -464,7 +548,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                 {filteredCommitments.map((com) => {
                   const pct =
                     com.promised > 0
-                      ? Math.min(100, Math.round((Number(com.received) / Number(com.promised)) * 100))
+                      ? Math.round((Number(com.received) / Number(com.promised)) * 100)
                       : 0;
                   const pendingAmt = Math.max(0, Number(com.promised) - Number(com.received));
 
@@ -501,12 +585,42 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                           '—'
                         )}
                       </td>
+                      <td className="px-4 py-3 text-xs whitespace-nowrap">
+                        {com.due_date ? (
+                          com.status !== 'Fully Received' && com.status !== 'Cancelled' ? (
+                            com.due_date < todayStr ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/25">
+                                ⚠️ {formatDisplayDate(com.due_date)}
+                              </span>
+                            ) : com.due_date === todayStr ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25">
+                                🔔 Today
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground font-medium">
+                                {formatDisplayDate(com.due_date)}
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-muted-foreground line-through text-[11px]">
+                              {formatDisplayDate(com.due_date)}
+                            </span>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap font-semibold">
                         {formatINR(com.promised)}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-emerald-600 dark:text-emerald-400 font-semibold">
                         <div className="flex items-center gap-1.5">
                           <span>{formatINR(com.received)}</span>
+                          {Number(com.received) > Number(com.promised) && (
+                            <span className="text-[9px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-1 py-0.5 rounded">
+                              +{formatINR(Number(com.received) - Number(com.promised))}
+                            </span>
+                          )}
                           {com.received > 0 && com.money_type && (
                             <button
                               type="button"
@@ -530,7 +644,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                       <td className="px-4 py-3 w-32">
                         <div className="flex items-center gap-2">
                           <Progress
-                            value={pct}
+                            value={Math.min(100, pct)}
                             className={`h-1.5 flex-1 ${
                               com.status === 'Fully Received'
                                 ? '[&>div]:bg-emerald-500'

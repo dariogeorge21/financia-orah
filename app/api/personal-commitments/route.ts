@@ -69,6 +69,8 @@ export async function POST(request: Request) {
     const screenshotLink = typeof body.screenshot_link === 'string' ? body.screenshot_link.trim() : null;
     const notes = typeof body.notes === 'string' ? body.notes.trim() : null;
 
+    const dueDate = typeof body.due_date === 'string' && body.due_date.trim() ? body.due_date.trim() : null;
+
     if (!personName) {
       return NextResponse.json(
         { success: false, error: 'Person name is required.' },
@@ -90,18 +92,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (received > promised) {
-      return NextResponse.json(
-        { success: false, error: 'Received amount cannot exceed the promised amount.' },
-        { status: 400 }
-      );
-    }
-
-    // Determine initial status
+    // Determine initial status: if received >= promised, it is Fully Received (allows overpayment)
     let status: CommitmentStatus = 'Pending';
     if (body.status && ['Pending', 'Partially Received', 'Fully Received', 'Cancelled'].includes(body.status)) {
       status = body.status;
-    } else if (received >= promised) {
+    } else if (received >= promised && promised > 0) {
       status = 'Fully Received';
     } else if (received > 0) {
       status = 'Partially Received';
@@ -129,24 +124,39 @@ export async function POST(request: Request) {
 
     const prayerRequest = typeof body.prayer_request === 'string' ? body.prayer_request.trim() : null;
 
-    const { data: newCommitment, error: insertError } = await supabase
+    const insertPayload: Record<string, unknown> = {
+      id: nextId,
+      person_name: personName,
+      mobile_number: mobileNumber || null,
+      caller_name: callerName || null,
+      promised,
+      received,
+      money_type: moneyType,
+      is_handed_over: isHandedOver,
+      screenshot_link: screenshotLink || null,
+      status,
+      due_date: dueDate,
+      notes: notes || null,
+      prayer_request: prayerRequest || null,
+    };
+
+    let { data: newCommitment, error: insertError } = await supabase
       .from('personal_commitments')
-      .insert({
-        id: nextId,
-        person_name: personName,
-        mobile_number: mobileNumber || null,
-        caller_name: callerName || null,
-        promised,
-        received,
-        money_type: moneyType,
-        is_handed_over: isHandedOver,
-        screenshot_link: screenshotLink || null,
-        status,
-        notes: notes || null,
-        prayer_request: prayerRequest || null,
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    // Fallback if due_date column does not exist yet in live database
+    if (insertError && insertError.message?.toLowerCase().includes('due_date')) {
+      delete insertPayload.due_date;
+      const retry = await supabase
+        .from('personal_commitments')
+        .insert(insertPayload)
+        .select()
+        .single();
+      newCommitment = retry.data;
+      insertError = retry.error;
+    }
 
     if (insertError) {
       return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });

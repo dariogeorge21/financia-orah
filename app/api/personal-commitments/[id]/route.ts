@@ -90,6 +90,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       updatePayload.is_handed_over = Boolean(body.is_handed_over);
     }
 
+    if (body.due_date !== undefined) {
+      updatePayload.due_date =
+        typeof body.due_date === 'string' && body.due_date.trim().length > 0
+          ? body.due_date.trim()
+          : null;
+    }
+
     if (body.notes !== undefined) {
       updatePayload.notes =
         typeof body.notes === 'string' && body.notes.trim().length > 0
@@ -119,13 +126,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         const promisedVal = Number(updatePayload.promised ?? current.promised);
         const receivedVal = Number(updatePayload.received ?? current.received);
 
-        if (receivedVal > promisedVal) {
-          return NextResponse.json(
-            { success: false, error: 'Received amount cannot exceed the promised amount.' },
-            { status: 400 }
-          );
-        }
-
+        // Auto-update status based on payment progress (allows overpayment receivedVal >= promisedVal)
         if (!body.status && current.status !== 'Cancelled') {
           if (receivedVal >= promisedVal && promisedVal > 0) {
             updatePayload.status = 'Fully Received';
@@ -145,12 +146,25 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const { data: updatedCommitment, error: updateError } = await supabase
+    let { data: updatedCommitment, error: updateError } = await supabase
       .from('personal_commitments')
       .update(updatePayload)
       .eq('id', commitmentId)
       .select()
       .single();
+
+    // Fallback if due_date column does not exist yet in live database
+    if (updateError && updateError.message?.toLowerCase().includes('due_date')) {
+      delete updatePayload.due_date;
+      const retry = await supabase
+        .from('personal_commitments')
+        .update(updatePayload)
+        .eq('id', commitmentId)
+        .select()
+        .single();
+      updatedCommitment = retry.data;
+      updateError = retry.error;
+    }
 
     if (updateError) {
       return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });

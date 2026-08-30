@@ -66,6 +66,7 @@ export interface PersonalCommitmentRecord {
   is_handed_over?: boolean | null;
   screenshot_link?: string | null;
   status: CommitmentStatus;
+  due_date?: string | null;
   notes?: string | null;
   prayer_request?: string | null;
   created_at?: string;

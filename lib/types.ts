@@ -314,4 +314,84 @@ export interface PrayerSummary {
   totalDaysWithRequests: number;
 }
 
+// ============================================================
+// REGISTRATION FEES & CHECK-IN DUES TYPES
+// ============================================================
 
+export type FeePaymentStatus =
+  | 'paid'
+  | 'fully_paid'
+  | 'partially_paid'
+  | 'half_paid'
+  | 'later_pay'
+  | 'pay_later'
+  | 'not_paid'
+  | 'no_pay';
+
+export type FeePaymentMethod = 'CASH' | 'UPI';
+
+export interface FeeRecord {
+  id: string; // checkin id
+  event_id?: string | null;
+  registration_id?: string | null;
+  volunteer_registration_id?: string | null;
+  registration_option?: string | null;
+  payment_status: FeePaymentStatus;
+  payment_method?: FeePaymentMethod | null;
+  amount_paid: number;
+  amount_due: number;
+  payment_note?: string | null;
+  checked_in_at?: string | null;
+  checked_in_by?: string | null;
+  created_at?: string | null;
+
+  // Participant metadata
+  participant_name?: string | null;
+  participant_phone?: string | null;
+  participant_email?: string | null;
+  participant_parish?: string | null;
+  participant_diocese?: string | null;
+  participant_registration_type?: string | null;
+  participant_college?: string | null;
+  participant_affiliation?: string | null;
+
+  // Volunteer metadata
+  volunteer_name?: string | null;
+  volunteer_phone?: string | null;
+  volunteer_ministry?: string | null;
+  volunteer_role?: string | null;
+  volunteer_registration_type?: string | null;
+
+  // Unified convenience fields
+  display_name?: string | null;
+  display_phone?: string | null;
+  person_type: 'participant' | 'volunteer';
+}
+
+export interface FeeSummary {
+  totalCollected: number;
+  cashCollected: number;
+  cashCount: number;
+  upiCollected: number;
+  upiCount: number;
+  totalDue: number;
+  totalExpected: number;
+  checkedInCount: number;
+
+  // Status-specific breakdowns
+  fullyPaidCount: number;
+  fullyPaidAmount: number;
+
+  partiallyPaidCount: number;
+  partiallyPaidAmount: number;
+  partiallyPaidDue: number;
+
+  laterPayCount: number;
+  laterPayDue: number;
+
+  notPaidCount: number;
+  notPaidDue: number;
+
+  // Percentage collection rate (0-100)
+  collectionRate: number;
+}

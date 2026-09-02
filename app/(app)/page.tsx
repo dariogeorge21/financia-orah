@@ -7,10 +7,12 @@ import {
   calcChurchSummary,
   calcCouponSummary,
   calcBudgetRows,
+  calcFeeSummary,
   formatINR,
   incomeByType,
   expenseByCategory,
 } from '@/lib/calculations';
+import { fetchServerFees } from '@/app/api/fees/route';
 import { KpiCard } from '@/components/finance/KpiCard';
 import { DashboardCharts } from '@/components/finance/DashboardCharts';
 import { RecentTransactions } from '@/components/finance/RecentTransactions';
@@ -29,7 +31,7 @@ import Link from 'next/link';
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [incRes, expRes, pComRes, fcRes, reimRes, budRes, churchRes, couponRes] = await Promise.all([
+  const [incRes, expRes, pComRes, fcRes, reimRes, budRes, churchRes, couponRes, fees] = await Promise.all([
     supabase.from('income').select('*').order('date', { ascending: false }),
     supabase.from('expenses').select('*').order('created_at', { ascending: false }),
     supabase.from('personal_commitments').select('*').order('created_at', { ascending: false }),
@@ -38,6 +40,7 @@ export default async function DashboardPage() {
     supabase.from('budget').select('*').order('category'),
     supabase.from('church_donations').select('*').order('created_at', { ascending: false }),
     supabase.from('coupons').select('*').order('created_at', { ascending: false }),
+    fetchServerFees(),
   ]);
 
   const income = (incRes.data ?? []) as IncomeRecord[];
@@ -56,6 +59,7 @@ export default async function DashboardPage() {
   const churchSummary = calcChurchSummary(churchDonations);
   const couponSummary = calcCouponSummary(coupons);
   const budgetRows = calcBudgetRows(budgets, expenses);
+  const feeSummary = calcFeeSummary(fees);
 
   const incomeChart = incomeByType(income);
   const expenseChart = expenseByCategory(expenses);
@@ -317,6 +321,79 @@ export default async function DashboardPage() {
         personalCommitments={pComSummary}
         financeCalls={fcSummary}
       />
+
+      {/* Registration Fees & Check-In Dues KPI (Minimal Summary) */}
+      <section className="rounded-2xl border border-border/50 bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="14" x="2" y="5" rx="2" />
+                <line x1="2" x2="22" y1="10" y2="10" />
+                <path d="M12 14v2" />
+                <path d="M16 14v2" />
+                <path d="M8 14v2" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground text-sm sm:text-base">
+                Event Registration Fees & Dues
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Live desk collections from {feeSummary.checkedInCount} checked-in attendee{feeSummary.checkedInCount === 1 ? '' : 's'}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/fees"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          >
+            Open Fees Manager ({fees.length}) →
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+          <div className="rounded-xl bg-muted/40 p-3.5">
+            <p className="text-xs text-muted-foreground">Total Collected</p>
+            <p className="text-base font-bold text-foreground tabular-nums">
+              {formatINR(feeSummary.totalCollected)}
+            </p>
+            <span className="text-[10px] text-muted-foreground font-medium">
+              Rate: {feeSummary.collectionRate}%
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-teal-500/10 p-3.5">
+            <p className="text-xs text-teal-700 dark:text-teal-300">Cash Collected</p>
+            <p className="text-base font-bold text-teal-700 dark:text-teal-300 tabular-nums">
+              {formatINR(feeSummary.cashCollected)}
+            </p>
+            <span className="text-[10px] text-teal-600/80 dark:text-teal-400/80 font-medium">
+              {feeSummary.cashCount} cash payer{feeSummary.cashCount === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-indigo-500/10 p-3.5">
+            <p className="text-xs text-indigo-700 dark:text-indigo-300">UPI Collected</p>
+            <p className="text-base font-bold text-indigo-700 dark:text-indigo-300 tabular-nums">
+              {formatINR(feeSummary.upiCollected)}
+            </p>
+            <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 font-medium">
+              {feeSummary.upiCount} UPI QR payer{feeSummary.upiCount === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="rounded-xl bg-rose-500/10 p-3.5">
+            <p className="text-xs text-rose-700 dark:text-rose-300">Pending Dues</p>
+            <p className="text-base font-bold text-rose-700 dark:text-rose-300 tabular-nums">
+              {formatINR(feeSummary.totalDue)}
+            </p>
+            <span className="text-[10px] text-rose-600/80 dark:text-rose-400/80 font-medium">
+              {feeSummary.partiallyPaidCount + feeSummary.laterPayCount + feeSummary.notPaidCount} attendee{feeSummary.partiallyPaidCount + feeSummary.laterPayCount + feeSummary.notPaidCount === 1 ? '' : 's'} with dues
+            </span>
+          </div>
+        </div>
+      </section>
 
       {/* Recent Transactions */}
       <RecentTransactions income={recentIncome} expenses={recentExpenses} />

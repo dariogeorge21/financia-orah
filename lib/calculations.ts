@@ -23,6 +23,9 @@ import type {
   PrayerRequestRecord,
   DailyPrayerGroup,
   PrayerSummary,
+  FeeRecord,
+  FeeSummary,
+  FeePaymentStatus,
 } from './types';
 
 /**
@@ -690,5 +693,116 @@ export function formatPrayerContactsList(requests: PrayerRequestRecord[]): strin
     .map((r, i) => `${i + 1}. ${r.person_name} - ${r.mobile_number || 'No Phone'}`)
     .join('\n');
 }
+
+// ============================================================
+// REGISTRATION FEES & DUES CALCULATIONS
+// ============================================================
+
+/**
+ * Calculates aggregated KPI summary metrics for checked-in registration fees and dues.
+ */
+export function calcFeeSummary(fees: FeeRecord[]): FeeSummary {
+  let totalCollected = 0;
+  let cashCollected = 0;
+  let cashCount = 0;
+  let upiCollected = 0;
+  let upiCount = 0;
+  let totalDue = 0;
+
+  let fullyPaidCount = 0;
+  let fullyPaidAmount = 0;
+
+  let partiallyPaidCount = 0;
+  let partiallyPaidAmount = 0;
+  let partiallyPaidDue = 0;
+
+  let laterPayCount = 0;
+  let laterPayDue = 0;
+
+  let notPaidCount = 0;
+  let notPaidDue = 0;
+
+  for (const fee of fees) {
+    const paid = Number(fee.amount_paid) || 0;
+    const due = Number(fee.amount_due) || 0;
+    const status = (fee.payment_status || '').toLowerCase().trim();
+    const method = (fee.payment_method || '').toUpperCase().trim();
+
+    totalCollected += paid;
+    totalDue += due;
+
+    if (method === 'CASH') {
+      cashCollected += paid;
+      if (paid > 0) cashCount += 1;
+    } else if (method === 'UPI') {
+      upiCollected += paid;
+      if (paid > 0) upiCount += 1;
+    }
+
+    if (status === 'paid' || status === 'fully_paid') {
+      fullyPaidCount += 1;
+      fullyPaidAmount += paid;
+    } else if (status === 'partially_paid' || status === 'half_paid') {
+      partiallyPaidCount += 1;
+      partiallyPaidAmount += paid;
+      partiallyPaidDue += due;
+    } else if (status === 'later_pay' || status === 'pay_later') {
+      laterPayCount += 1;
+      laterPayDue += due;
+    } else {
+      // not_paid, no_pay, or unassigned
+      notPaidCount += 1;
+      notPaidDue += due;
+    }
+  }
+
+  const totalExpected = totalCollected + totalDue;
+  const collectionRate = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
+
+  return {
+    totalCollected,
+    cashCollected,
+    cashCount,
+    upiCollected,
+    upiCount,
+    totalDue,
+    totalExpected,
+    checkedInCount: fees.length,
+    fullyPaidCount,
+    fullyPaidAmount,
+    partiallyPaidCount,
+    partiallyPaidAmount,
+    partiallyPaidDue,
+    laterPayCount,
+    laterPayDue,
+    notPaidCount,
+    notPaidDue,
+    collectionRate: Math.round(collectionRate * 10) / 10,
+  };
+}
+
+/**
+ * Normalizes payment status into user-friendly display labels.
+ */
+export function formatFeeStatusLabel(status: FeePaymentStatus | string): string {
+  const s = (status || '').toLowerCase().trim();
+  switch (s) {
+    case 'paid':
+    case 'fully_paid':
+      return 'Fully Paid';
+    case 'partially_paid':
+    case 'half_paid':
+      return 'Partially Paid';
+    case 'later_pay':
+    case 'pay_later':
+      return 'Pay Later';
+    case 'not_paid':
+    case 'no_pay':
+      return 'Unpaid';
+    default:
+      return 'Pending';
+  }
+}
+
 
 

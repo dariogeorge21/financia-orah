@@ -22,22 +22,18 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { updateExpense } from '@/features/expenses';
 import { formatINR, calcMoneyPosition, isEventExpense } from '@/lib/calculations';
-import type { ExpenseRecord, MoneyType, PaymentSource, ExpenseStatus, SettlementStatus, MoneyPosition } from '@/lib/types';
+import {
+  type ExpenseRecord,
+  type MoneyType,
+  type PaymentSource,
+  type ExpenseStatus,
+  type SettlementStatus,
+  type MoneyPosition,
+  EXPENSE_CATEGORIES,
+} from '@/lib/types';
 
 const CATEGORIES = [
-  'Food',
-  'Venue',
-  'Transport',
-  'Accommodation',
-  'Printing',
-  'Decoration',
-  'Equipment',
-  'Media',
-  'Marketing',
-  'Stationery',
-  'Security',
-  'Medical',
-  'Miscellaneous',
+  ...EXPENSE_CATEGORIES,
   'Other',
 ];
 
@@ -97,21 +93,7 @@ export function EditExpenseDialog({
 
   useEffect(() => {
     if (expense) {
-      const standardCategories = [
-        'Food',
-        'Venue',
-        'Transport',
-        'Accommodation',
-        'Printing',
-        'Decoration',
-        'Equipment',
-        'Media',
-        'Marketing',
-        'Stationery',
-        'Security',
-        'Medical',
-        'Miscellaneous',
-      ];
+      const standardCategories = EXPENSE_CATEGORIES as string[];
 
       const isOther = expense.category && !standardCategories.includes(expense.category);
 

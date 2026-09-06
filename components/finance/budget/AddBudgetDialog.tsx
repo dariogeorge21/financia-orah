@@ -15,21 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { createBudgetCategory } from '@/features/budget';
 import { formatINR } from '@/lib/calculations';
+import { BUDGET_CATEGORIES } from '@/lib/types';
 
 const DEFAULT_CATEGORIES = [
-  'Food',
-  'Venue',
-  'Transport',
-  'Accommodation',
-  'Printing',
-  'Decoration',
-  'Equipment',
-  'Media',
-  'Marketing',
-  'Stationery',
-  'Security',
-  'Medical',
-  'Miscellaneous',
+  ...BUDGET_CATEGORIES,
   'Other',
 ];
 
@@ -48,7 +37,7 @@ export function AddBudgetDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [categoryType, setCategoryType] = useState('Food');
+  const [categoryType, setCategoryType] = useState('Mobilisation');
   const [customCategory, setCustomCategory] = useState('');
   const [planned, setPlanned] = useState('');
   const [description, setDescription] = useState('');
@@ -85,7 +74,7 @@ export function AddBudgetDialog({
         });
 
         setOpen(false);
-        setCategoryType('Food');
+        setCategoryType('Mobilisation');
         setCustomCategory('');
         setPlanned('');
         setDescription('');

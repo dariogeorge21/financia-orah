@@ -23,23 +23,11 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { createExpense } from '@/features/expenses';
 import { formatINR, calcMoneyPosition } from '@/lib/calculations';
-import type { MoneyType, PaymentSource, ExpenseStatus, MoneyPosition } from '@/lib/types';
+import { type MoneyType, type PaymentSource, type ExpenseStatus, type MoneyPosition, EXPENSE_CATEGORIES } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 const CATEGORIES = [
-  'Food',
-  'Venue',
-  'Transport',
-  'Accommodation',
-  'Printing',
-  'Decoration',
-  'Equipment',
-  'Media',
-  'Marketing',
-  'Stationery',
-  'Security',
-  'Medical',
-  'Miscellaneous',
+  ...EXPENSE_CATEGORIES,
   'Other',
 ];
 

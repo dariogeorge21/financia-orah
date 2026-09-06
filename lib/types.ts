@@ -16,20 +16,36 @@ export type IncomeType =
   | 'Other';
 
 export type ExpenseCategory =
-  | 'Food'
-  | 'Venue'
-  | 'Transport'
-  | 'Accommodation'
+  | 'Mobilisation'
+  | 'Medical'
   | 'Printing'
   | 'Decoration'
-  | 'Equipment'
-  | 'Media'
-  | 'Marketing'
+  | 'AV'
+  | 'Light & Sound'
   | 'Stationery'
+  | 'Transport (Fuel)'
+  | 'TA'
   | 'Security'
-  | 'Medical'
-  | 'Miscellaneous'
+  | 'Food'
+  | 'Venue'
   | string;
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Mobilisation',
+  'Medical',
+  'Printing',
+  'Decoration',
+  'AV',
+  'Light & Sound',
+  'Stationery',
+  'Transport (Fuel)',
+  'TA',
+  'Security',
+  'Food',
+  'Venue',
+];
+
+export const BUDGET_CATEGORIES = EXPENSE_CATEGORIES;
 
 export type PaymentSource = 'Personal' | 'Event' | 'Personal Money' | 'Event Money';
 export type ExpenseStatus = 'Pending' | 'Approved' | 'Rejected';

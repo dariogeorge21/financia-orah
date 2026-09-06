@@ -30,6 +30,7 @@ const INCOME_TYPES: IncomeType[] = [
   'Personal Commitment',
   'Finance Call',
   'Church',
+  'Church/Convent',
   'Coupon',
   'Sponsor',
   'Other',
@@ -67,7 +68,7 @@ export function EditIncomeDialog({
   useEffect(() => {
     if (income) {
       setDate(income.date || '');
-      const standardTypes = ['Donation', 'Registration', 'Personal Commitment', 'Finance Call', 'Church', 'Coupon', 'Sponsor'];
+      const standardTypes = ['Donation', 'Registration', 'Personal Commitment', 'Finance Call', 'Church', 'Church/Convent', 'Coupon', 'Sponsor'];
       if (income.type && !standardTypes.includes(income.type)) {
         setType('Other');
         setOtherType(income.type === 'Other' ? '' : income.type);

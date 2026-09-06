@@ -34,6 +34,7 @@ const TYPE_COLORS: Record<string, string> = {
   'Finance Call': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   Commitment: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
   Church: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  'Church/Convent': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
   Coupon: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
   Sponsor: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
   Other: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
@@ -192,6 +193,17 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
         .reduce((s, i) => s + Number(i.amount), 0),
     [income]
   );
+
+  // Dynamic list of all distinct types available in current data + standard list
+  const availableTypes = useMemo(() => {
+    const types = new Set<string>(ALL_TYPES);
+    income.forEach((inc) => {
+      if (inc.type && inc.type.trim()) {
+        types.add(inc.type.trim());
+      }
+    });
+    return Array.from(types);
+  }, [income]);
 
   // Filtered list
   const filteredIncome = useMemo(() => {
@@ -431,7 +443,7 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
-              {ALL_TYPES.map((t) => (
+              {availableTypes.map((t) => (
                 <SelectItem key={t} value={t}>
                   {t}
                 </SelectItem>

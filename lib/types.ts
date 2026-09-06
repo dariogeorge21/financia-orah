@@ -13,7 +13,8 @@ export type IncomeType =
   | 'Church/Convent'
   | 'Coupon'
   | 'Sponsor'
-  | 'Other';
+  | 'Other'
+  | (string & {});
 
 export type ExpenseCategory =
   | 'Mobilisation'

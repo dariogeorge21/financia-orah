@@ -143,6 +143,125 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: insertError.message }, { status: 500 });
     }
 
+    // Safety fallback: if database trigger is not yet active and reference_id was not set
+    if (!newIncome.reference_id) {
+      if (type === 'Finance Call') {
+        const { data: allCalls } = await supabase.from('finance_calls').select('id');
+        let maxFc = 0;
+        if (allCalls) {
+          for (const item of allCalls) {
+            const m = item.id.match(/^FC-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxFc) maxFc = n;
+            }
+          }
+        }
+        const fcId = `FC-${String(maxFc + 1).padStart(4, '0')}`;
+        await supabase.from('finance_calls').insert({
+          id: fcId,
+          person_name: contributor,
+          mobile_number: mobileNumber || null,
+          promised: amount,
+          received: amount,
+          status: 'Fully Received',
+          money_type: moneyType,
+          is_handed_over: isHandedOver,
+          screenshot_link: screenshotLink || null,
+          notes: notes || null,
+          prayer_request: prayerRequest || null,
+        });
+        await supabase.from('income').update({ reference_id: fcId, commitment_id: fcId }).eq('id', nextId);
+        newIncome.reference_id = fcId;
+        newIncome.commitment_id = fcId;
+      } else if (type === 'Personal Commitment' || type === 'Commitment') {
+        const { data: allPcom } = await supabase.from('personal_commitments').select('id');
+        let maxPcom = 0;
+        if (allPcom) {
+          for (const item of allPcom) {
+            const m = item.id.match(/^PCOM-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxPcom) maxPcom = n;
+            }
+          }
+        }
+        const pcomId = `PCOM-${String(maxPcom + 1).padStart(4, '0')}`;
+        await supabase.from('personal_commitments').insert({
+          id: pcomId,
+          person_name: contributor,
+          mobile_number: mobileNumber || null,
+          promised: amount,
+          received: amount,
+          status: 'Fully Received',
+          money_type: moneyType,
+          is_handed_over: isHandedOver,
+          screenshot_link: screenshotLink || null,
+          notes: notes || null,
+          prayer_request: prayerRequest || null,
+        });
+        await supabase.from('income').update({ reference_id: pcomId, commitment_id: pcomId }).eq('id', nextId);
+        newIncome.reference_id = pcomId;
+        newIncome.commitment_id = pcomId;
+      } else if (type === 'Coupon') {
+        const { data: allCpns } = await supabase.from('coupons').select('id');
+        let maxCpn = 0;
+        if (allCpns) {
+          for (const item of allCpns) {
+            const m = item.id.match(/^CPN-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxCpn) maxCpn = n;
+            }
+          }
+        }
+        const cpnId = `CPN-${String(maxCpn + 1).padStart(4, '0')}`;
+        await supabase.from('coupons').insert({
+          id: cpnId,
+          contributor_name: contributor,
+          mobile_number: mobileNumber || null,
+          date,
+          money_type: moneyType,
+          amount,
+          is_handed_over: isHandedOver,
+          notes: notes || null,
+          prayer_request: prayerRequest || null,
+          screenshot_link: screenshotLink || null,
+        });
+        await supabase.from('income').update({ reference_id: cpnId, commitment_id: cpnId }).eq('id', nextId);
+        newIncome.reference_id = cpnId;
+        newIncome.commitment_id = cpnId;
+      } else if (type === 'Church' || type === 'Church/Convent') {
+        const { data: allChus } = await supabase.from('church_donations').select('id');
+        let maxChu = 0;
+        if (allChus) {
+          for (const item of allChus) {
+            const m = item.id.match(/^CHU-(\d+)$/i);
+            if (m) {
+              const n = parseInt(m[1], 10);
+              if (n > maxChu) maxChu = n;
+            }
+          }
+        }
+        const chuId = `CHU-${String(maxChu + 1).padStart(4, '0')}`;
+        await supabase.from('church_donations').insert({
+          id: chuId,
+          church_name: contributor,
+          contact_number: mobileNumber || null,
+          date,
+          money_type: moneyType,
+          amount,
+          is_handed_over: isHandedOver,
+          notes: notes || null,
+          prayer_request: prayerRequest || null,
+          screenshot_link: screenshotLink || null,
+        });
+        await supabase.from('income').update({ reference_id: chuId, commitment_id: chuId }).eq('id', nextId);
+        newIncome.reference_id = chuId;
+        newIncome.commitment_id = chuId;
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,

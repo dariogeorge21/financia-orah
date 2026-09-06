@@ -31,6 +31,121 @@ import { SettleExpenseDialog } from '../SettleExpenseDialog';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteExpense } from '@/features/expenses';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const EXPENSE_EXPORT_FIELDS: ExportField<ExpenseRecord>[] = [
+  {
+    key: 'category',
+    label: 'Category',
+    group: 'Basic Details',
+    accessor: (e) => e.category,
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    group: 'Basic Details',
+    accessor: (e) => e.description || '',
+  },
+  {
+    key: 'amount',
+    label: 'Total Amount (₹)',
+    group: 'Financials',
+    accessor: (e) => Number(e.amount),
+  },
+  {
+    key: 'money_type',
+    label: 'Payment Mode',
+    group: 'Financials',
+    accessor: (e) => e.money_type,
+  },
+  {
+    key: 'paid_by',
+    label: 'Paid By / Recipient',
+    group: 'Person Details',
+    accessor: (e) => e.paid_by,
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Person Details',
+    defaultSelected: true,
+    accessor: (e) => e.mobile_number || '',
+  },
+  {
+    key: 'payment_source',
+    label: 'Payment Source',
+    group: 'Financials',
+    accessor: (e) => e.payment_source,
+  },
+  {
+    key: 'status',
+    label: 'Approval Status',
+    group: 'Status & Settlement',
+    accessor: (e) => e.status,
+  },
+  {
+    key: 'settlement_status',
+    label: 'Settlement Status',
+    group: 'Status & Settlement',
+    accessor: (e) => e.settlement_status || 'Direct',
+  },
+  {
+    key: 'advance_amount',
+    label: 'Advance Disbursed (₹)',
+    group: 'Status & Settlement',
+    defaultSelected: false,
+    accessor: (e) => (e.advance_amount ? Number(e.advance_amount) : 0),
+  },
+  {
+    key: 'advance_money_type',
+    label: 'Advance Mode',
+    group: 'Status & Settlement',
+    defaultSelected: false,
+    accessor: (e) => e.advance_money_type || '',
+  },
+  {
+    key: 'balance_amount',
+    label: 'Settlement Balance (₹)',
+    group: 'Status & Settlement',
+    defaultSelected: false,
+    accessor: (e) => (e.balance_amount ? Number(e.balance_amount) : 0),
+  },
+  {
+    key: 'has_receipt',
+    label: 'Has Receipt',
+    group: 'Verification & Audit',
+    defaultSelected: true,
+    accessor: (e) => (e.has_receipt ? 'Yes' : 'No'),
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (e) => e.notes || '',
+  },
+  {
+    key: 'receipt_link',
+    label: 'Receipt URL',
+    group: 'Verification & Audit',
+    defaultSelected: false,
+    accessor: (e) => e.receipt_link || '',
+  },
+  {
+    key: 'id',
+    label: 'Record ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (e) => e.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (e) => (e.created_at ? new Date(e.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface ExpenseManagerProps {
   initialExpenses: ExpenseRecord[];
@@ -202,6 +317,16 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
             </svg>
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Expense Records"
+            description="Export event expenditures, bills, and advance settlements to CSV."
+            defaultFilename={`orah_expenses_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={expenses}
+            filteredData={filteredExpenses}
+            fields={EXPENSE_EXPORT_FIELDS}
+            storageKey="expenses"
+          />
 
           {/* Quick Disburse Advance Button */}
           <AddExpenseDialog

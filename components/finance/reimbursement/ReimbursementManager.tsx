@@ -29,6 +29,76 @@ import {
   updateReimbursement,
   deleteReimbursement,
 } from '@/features/reimbursements';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const REIMBURSEMENT_EXPORT_FIELDS: ExportField<ReimbursementRecord>[] = [
+  {
+    key: 'date',
+    label: 'Claim Date',
+    group: 'Claim Info',
+    accessor: (r) => r.date,
+  },
+  {
+    key: 'person',
+    label: 'Person / Claimant',
+    group: 'Claim Info',
+    accessor: (r) => r.person,
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Claim Info',
+    defaultSelected: true,
+    accessor: (r) => r.mobile_number || '',
+  },
+  {
+    key: 'amount',
+    label: 'Reimbursement Amount (₹)',
+    group: 'Financials',
+    accessor: (r) => Number(r.amount),
+  },
+  {
+    key: 'status',
+    label: 'Settlement Status',
+    group: 'Financials',
+    accessor: (r) => r.status,
+  },
+  {
+    key: 'money_type_paid',
+    label: 'Paid Via Mode',
+    group: 'Financials',
+    defaultSelected: true,
+    accessor: (r) => r.money_type_paid || 'Pending',
+  },
+  {
+    key: 'expense_id',
+    label: 'Linked Expense ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (r) => r.expense_id,
+  },
+  {
+    key: 'notes',
+    label: 'Notes / Remarks',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (r) => r.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Reimbursement ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (r) => r.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (r) => (r.created_at ? new Date(r.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface ReimbursementManagerProps {
   initialReimbursements: ReimbursementRecord[];
@@ -192,6 +262,16 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
             </svg>
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Reimbursement Claims"
+            description="Export individual expense reimbursement claims and settlement statuses to CSV."
+            defaultFilename={`orah_reimbursements_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={reimbursements}
+            filteredData={filteredReimbursements}
+            fields={REIMBURSEMENT_EXPORT_FIELDS}
+            storageKey="reimbursements"
+          />
 
           <AddReimbursementDialog onSuccess={handleRefresh} />
         </div>

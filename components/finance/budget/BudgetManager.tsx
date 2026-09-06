@@ -18,6 +18,53 @@ import { EditBudgetDialog } from './EditBudgetDialog';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchBudgetData, deleteBudgetCategory } from '@/features/budget';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const BUDGET_EXPORT_FIELDS: ExportField<BudgetRow>[] = [
+  {
+    key: 'category',
+    label: 'Category Name',
+    group: 'Budget Info',
+    accessor: (b) => b.category,
+  },
+  {
+    key: 'planned',
+    label: 'Planned Budget (₹)',
+    group: 'Financials',
+    accessor: (b) => Number(b.planned),
+  },
+  {
+    key: 'actual',
+    label: 'Actual Spent (₹)',
+    group: 'Financials',
+    accessor: (b) => Number(b.actual),
+  },
+  {
+    key: 'remaining',
+    label: 'Remaining Balance (₹)',
+    group: 'Financials',
+    accessor: (b) => Number(b.remaining),
+  },
+  {
+    key: 'utilizationPct',
+    label: 'Utilization %',
+    group: 'Analytics',
+    accessor: (b) => `${b.utilizationPct}%`,
+  },
+  {
+    key: 'statusLabel',
+    label: 'Budget Health',
+    group: 'Analytics',
+    accessor: (b) => b.statusLabel,
+  },
+  {
+    key: 'description',
+    label: 'Description / Notes',
+    group: 'Budget Info',
+    defaultSelected: true,
+    accessor: (b) => b.description || '',
+  },
+];
 
 interface BudgetManagerProps {
   initialBudgets: BudgetCategory[];
@@ -136,6 +183,16 @@ export function BudgetManager({
             </svg>
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Event Budget Plan"
+            description="Export department budget allocations, actual expenditures, and remaining funds to CSV."
+            defaultFilename={`orah_budget_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={rows}
+            filteredData={filteredRows}
+            fields={BUDGET_EXPORT_FIELDS}
+            storageKey="budget"
+          />
 
           <AddBudgetDialog
             existingCategories={existingCategories}

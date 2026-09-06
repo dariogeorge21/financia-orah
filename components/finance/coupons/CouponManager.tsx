@@ -18,6 +18,94 @@ import { EditCouponDialog } from './EditCouponDialog';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchCouponsData, deleteCoupon, updateCoupon } from '@/features/coupons';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const COUPON_EXPORT_FIELDS: ExportField<CouponRecord>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    group: 'Basic Details',
+    accessor: (c) => c.date,
+  },
+  {
+    key: 'contributor_name',
+    label: 'Contributor Name',
+    group: 'Basic Details',
+    accessor: (c) => c.contributor_name,
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Basic Details',
+    defaultSelected: true,
+    accessor: (c) => c.mobile_number || '',
+  },
+  {
+    key: 'amount',
+    label: 'Amount (₹)',
+    group: 'Financials',
+    accessor: (c) => Number(c.amount),
+  },
+  {
+    key: 'money_type',
+    label: 'Payment Mode',
+    group: 'Financials',
+    accessor: (c) => c.money_type,
+  },
+  {
+    key: 'is_handed_over',
+    label: 'Handover Status',
+    group: 'Financials',
+    accessor: (c) =>
+      c.money_type === 'Cash'
+        ? c.is_handed_over === false
+          ? 'Pending'
+          : 'Handed Over'
+        : 'N/A (Digital)',
+  },
+  {
+    key: 'booklet_number',
+    label: 'Booklet Number',
+    group: 'Coupon Details',
+    defaultSelected: true,
+    accessor: (c) => c.booklet_number || '',
+  },
+  {
+    key: 'collected_by',
+    label: 'Collected By (Volunteer)',
+    group: 'Coupon Details',
+    defaultSelected: true,
+    accessor: (c) => c.collected_by || '',
+  },
+  {
+    key: 'prayer_request',
+    label: 'Prayer Request',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (c) => c.prayer_request || '',
+  },
+  {
+    key: 'notes',
+    label: 'Notes / Remarks',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (c) => c.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Coupon ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (c) => c.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (c) => (c.created_at ? new Date(c.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface CouponManagerProps {
   initialCoupons: CouponRecord[];
@@ -260,6 +348,16 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Coupon Collections"
+            description="Export coupon booklet sales, collections, and contributor logs to CSV."
+            defaultFilename={`orah_coupons_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={coupons}
+            filteredData={filteredCoupons}
+            fields={COUPON_EXPORT_FIELDS}
+            storageKey="coupons"
+          />
 
           <AddCouponDialog onSuccess={handleRefresh} />
         </div>

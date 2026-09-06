@@ -39,6 +39,82 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const PRAYER_EXPORT_FIELDS: ExportField<PrayerRequestRecord>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    group: 'Basic Details',
+    accessor: (p) => p.date,
+  },
+  {
+    key: 'person_name',
+    label: 'Person / Benefactor Name',
+    group: 'Basic Details',
+    accessor: (p) => p.person_name,
+  },
+  {
+    key: 'prayer_request',
+    label: 'Prayer Intention',
+    group: 'Basic Details',
+    accessor: (p) => p.prayer_request,
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Contact Info',
+    defaultSelected: true,
+    accessor: (p) => p.mobile_number || '',
+  },
+  {
+    key: 'status',
+    label: 'Prayer Status',
+    group: 'Status & Source',
+    accessor: (p) => p.status,
+  },
+  {
+    key: 'source',
+    label: 'Source Module',
+    group: 'Status & Source',
+    accessor: (p) => p.source || 'Direct',
+  },
+  {
+    key: 'amount',
+    label: 'Contribution Amount (₹)',
+    group: 'Status & Source',
+    defaultSelected: false,
+    accessor: (p) => (p.amount ? Number(p.amount) : ''),
+  },
+  {
+    key: 'reference_id',
+    label: 'Source Reference ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (p) => p.reference_id || '',
+  },
+  {
+    key: 'notes',
+    label: 'Notes / Remarks',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (p) => p.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Record ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (p) => p.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (p) => (p.created_at ? new Date(p.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface PrayerRequestManagerProps {
   initialRequests: PrayerRequestRecord[];
@@ -267,6 +343,16 @@ export function PrayerRequestManager({
             </svg>
             {isRefreshing ? 'Syncing…' : 'Sync'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Prayer Intentions"
+            description="Export benefactor intercessory prayer requests and intentions to CSV."
+            defaultFilename={`orah_prayer_requests_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={requests}
+            filteredData={filteredRequests}
+            fields={PRAYER_EXPORT_FIELDS}
+            storageKey="prayer_requests"
+          />
 
           {/* Direct Prayer Request Dialog */}
           <AddPrayerRequestDialog onSuccess={handleRefresh} />

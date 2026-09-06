@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { IncomeRecord, ExpenseRecord, MoneyPosition } from '@/lib/types';
+import type { IncomeRecord, ExpenseRecord, MoneyPosition, DailyFlowRecord } from '@/lib/types';
 import {
   formatINR,
   calcDailyFlowRecords,
@@ -10,6 +10,7 @@ import {
 import { KpiCard } from '@/components/finance/KpiCard';
 import { ViewModeToggle } from '@/components/finance/ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { DailyCardItem } from './DailyCardItem';
 import { DailyTransactionsList } from './DailyTransactionsList';
 import { Input } from '@/components/ui/input';
@@ -37,6 +38,95 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+
+const DAILY_FLOW_EXPORT_FIELDS: ExportField<DailyFlowRecord>[] = [
+  {
+    key: 'date',
+    label: 'Date (YYYY-MM-DD)',
+    group: 'Date Info',
+    accessor: (d) => d.date,
+  },
+  {
+    key: 'displayDate',
+    label: 'Formatted Date',
+    group: 'Date Info',
+    accessor: (d) => d.displayDate,
+  },
+  {
+    key: 'dayOfWeek',
+    label: 'Day of Week',
+    group: 'Date Info',
+    accessor: (d) => d.dayOfWeek,
+  },
+  {
+    key: 'incomeTotal',
+    label: 'Total Income (₹)',
+    group: 'Income Summary',
+    accessor: (d) => d.incomeTotal,
+  },
+  {
+    key: 'incomeCash',
+    label: 'Cash Income (₹)',
+    group: 'Income Summary',
+    accessor: (d) => d.incomeCash,
+  },
+  {
+    key: 'incomeUpi',
+    label: 'UPI Income (₹)',
+    group: 'Income Summary',
+    accessor: (d) => d.incomeUpi,
+  },
+  {
+    key: 'incomeCount',
+    label: 'Income Receipts Count',
+    group: 'Income Summary',
+    defaultSelected: false,
+    accessor: (d) => d.incomeCount,
+  },
+  {
+    key: 'expenseTotal',
+    label: 'Total Expenses (₹)',
+    group: 'Expense Summary',
+    accessor: (d) => d.expenseTotal,
+  },
+  {
+    key: 'expenseCash',
+    label: 'Cash Expenses (₹)',
+    group: 'Expense Summary',
+    accessor: (d) => d.expenseCash,
+  },
+  {
+    key: 'expenseUpi',
+    label: 'UPI Expenses (₹)',
+    group: 'Expense Summary',
+    accessor: (d) => d.expenseUpi,
+  },
+  {
+    key: 'expenseCount',
+    label: 'Expense Transactions Count',
+    group: 'Expense Summary',
+    defaultSelected: false,
+    accessor: (d) => d.expenseCount,
+  },
+  {
+    key: 'netTotal',
+    label: 'Net Daily Flow (₹)',
+    group: 'Net Balance',
+    accessor: (d) => d.netTotal,
+  },
+  {
+    key: 'netCash',
+    label: 'Net Cash Balance (₹)',
+    group: 'Net Balance',
+    accessor: (d) => d.netCash,
+  },
+  {
+    key: 'netUpi',
+    label: 'Net UPI Balance (₹)',
+    group: 'Net Balance',
+    accessor: (d) => d.netUpi,
+  },
+];
 
 interface DailyFlowManagerProps {
   initialIncome: IncomeRecord[];
@@ -215,6 +305,16 @@ export function DailyFlowManager({
             </svg>
             {isRefreshing ? 'Syncing…' : 'Sync'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Daily Cash Flow"
+            description="Export day-by-day cash, UPI, and total net flow summaries to CSV."
+            defaultFilename={`orah_daily_flow_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={dailyRecords}
+            filteredData={filteredRecords}
+            fields={DAILY_FLOW_EXPORT_FIELDS}
+            storageKey="daily_flow"
+          />
 
           <Button
             size="sm"

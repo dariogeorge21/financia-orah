@@ -25,6 +25,7 @@ import { EditIncomeDialog } from './EditIncomeDialog';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteIncome, updateIncome } from '@/features/income';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 
 const TYPE_COLORS: Record<string, string> = {
   Registration: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -47,6 +48,99 @@ const ALL_TYPES: IncomeType[] = [
   'Coupon',
   'Sponsor',
   'Other',
+];
+
+const INCOME_EXPORT_FIELDS: ExportField<IncomeRecord>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    group: 'Basic Details',
+    accessor: (i) => i.date,
+  },
+  {
+    key: 'contributor',
+    label: 'Contributor / Payer',
+    group: 'Basic Details',
+    accessor: (i) => i.contributor,
+  },
+  {
+    key: 'type',
+    label: 'Income Type',
+    group: 'Basic Details',
+    accessor: (i) => i.type,
+  },
+  {
+    key: 'amount',
+    label: 'Amount (₹)',
+    group: 'Financials',
+    accessor: (i) => Number(i.amount),
+  },
+  {
+    key: 'money_type',
+    label: 'Payment Mode (Cash/UPI)',
+    group: 'Financials',
+    accessor: (i) => i.money_type,
+  },
+  {
+    key: 'is_handed_over',
+    label: 'Handover Status',
+    group: 'Financials',
+    accessor: (i) =>
+      i.money_type === 'Cash'
+        ? i.is_handed_over === false
+          ? 'Pending'
+          : 'Handed Over'
+        : 'N/A (Digital)',
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Contact & Reference',
+    defaultSelected: true,
+    accessor: (i) => i.mobile_number || '',
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    group: 'Contact & Reference',
+    defaultSelected: true,
+    accessor: (i) => i.description || '',
+  },
+  {
+    key: 'reference_id',
+    label: 'Reference / UTR ID',
+    group: 'Contact & Reference',
+    defaultSelected: false,
+    accessor: (i) => i.reference_id || '',
+  },
+  {
+    key: 'prayer_request',
+    label: 'Prayer Request',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (i) => i.prayer_request || '',
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (i) => i.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Record ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (i) => i.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (i) => (i.created_at ? new Date(i.created_at).toLocaleString('en-IN') : ''),
+  },
 ];
 
 interface IncomeManagerProps {
@@ -221,6 +315,16 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
             </svg>
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Income Records"
+            description="Export received receipts and donation contributions to CSV."
+            defaultFilename={`orah_income_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={income}
+            filteredData={filteredIncome}
+            fields={INCOME_EXPORT_FIELDS}
+            storageKey="income"
+          />
 
           <AddIncomeDialog onSuccess={handleRefresh} moneyPosition={moneyPosition} />
         </div>

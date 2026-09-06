@@ -18,6 +18,87 @@ import { EditChurchDonationDialog } from './EditChurchDonationDialog';
 import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchChurchDonationsData, deleteChurchDonation, updateChurchDonation } from '@/features/church-donations';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const CHURCH_EXPORT_FIELDS: ExportField<ChurchDonationRecord>[] = [
+  {
+    key: 'date',
+    label: 'Date',
+    group: 'Basic Details',
+    accessor: (d) => d.date,
+  },
+  {
+    key: 'church_name',
+    label: 'Church / Convent Name',
+    group: 'Basic Details',
+    accessor: (d) => d.church_name,
+  },
+  {
+    key: 'contact_number',
+    label: 'Contact Number',
+    group: 'Basic Details',
+    defaultSelected: true,
+    accessor: (d) => d.contact_number || '',
+  },
+  {
+    key: 'amount',
+    label: 'Amount (₹)',
+    group: 'Financials',
+    accessor: (d) => Number(d.amount),
+  },
+  {
+    key: 'money_type',
+    label: 'Payment Mode',
+    group: 'Financials',
+    accessor: (d) => d.money_type,
+  },
+  {
+    key: 'is_handed_over',
+    label: 'Handover Status',
+    group: 'Financials',
+    accessor: (d) =>
+      d.money_type === 'Cash'
+        ? d.is_handed_over === false
+          ? 'Pending'
+          : 'Handed Over'
+        : 'N/A (Digital)',
+  },
+  {
+    key: 'collected_by',
+    label: 'Collected By (Volunteer)',
+    group: 'Collection Details',
+    defaultSelected: true,
+    accessor: (d) => d.collected_by || '',
+  },
+  {
+    key: 'prayer_request',
+    label: 'Prayer Request',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (d) => d.prayer_request || '',
+  },
+  {
+    key: 'notes',
+    label: 'Notes / Remarks',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (d) => d.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Record ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (d) => d.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (d) => (d.created_at ? new Date(d.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface ChurchDonationManagerProps {
   initialDonations: ChurchDonationRecord[];
@@ -259,6 +340,16 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Church & Convent Donations"
+            description="Export parish, church, and convent collections to CSV."
+            defaultFilename={`orah_church_donations_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={donations}
+            filteredData={filteredDonations}
+            fields={CHURCH_EXPORT_FIELDS}
+            storageKey="church_donations"
+          />
 
           <AddChurchDonationDialog onSuccess={handleRefresh} />
         </div>

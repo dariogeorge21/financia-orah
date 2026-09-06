@@ -11,6 +11,108 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { fetchFeeData } from '@/features/fees';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const FEE_EXPORT_FIELDS: ExportField<FeeRecord>[] = [
+  {
+    key: 'display_name',
+    label: 'Attendee / Volunteer Name',
+    group: 'Attendee Info',
+    accessor: (f) => f.display_name || '',
+  },
+  {
+    key: 'person_type',
+    label: 'Person Type (Participant/Volunteer)',
+    group: 'Attendee Info',
+    accessor: (f) => f.person_type,
+  },
+  {
+    key: 'display_phone',
+    label: 'Phone Number',
+    group: 'Attendee Info',
+    defaultSelected: true,
+    accessor: (f) => f.display_phone || '',
+  },
+  {
+    key: 'parish_ministry',
+    label: 'Parish / Ministry',
+    group: 'Attendee Info',
+    accessor: (f) =>
+      (f.person_type === 'volunteer'
+        ? f.volunteer_ministry || f.volunteer_role
+        : f.participant_parish) || '',
+  },
+  {
+    key: 'college_role',
+    label: 'College / Role',
+    group: 'Attendee Info',
+    defaultSelected: false,
+    accessor: (f) =>
+      (f.person_type === 'volunteer'
+        ? f.volunteer_role
+        : f.participant_college) || '',
+  },
+  {
+    key: 'participant_diocese',
+    label: 'Diocese',
+    group: 'Attendee Info',
+    defaultSelected: false,
+    accessor: (f) => f.participant_diocese || '',
+  },
+  {
+    key: 'payment_status',
+    label: 'Payment Status',
+    group: 'Payment Details',
+    accessor: (f) => formatFeeStatusLabel(f.payment_status),
+  },
+  {
+    key: 'payment_method',
+    label: 'Payment Method (Cash/UPI)',
+    group: 'Payment Details',
+    accessor: (f) => f.payment_method || 'None',
+  },
+  {
+    key: 'amount_paid',
+    label: 'Amount Paid (₹)',
+    group: 'Financials',
+    accessor: (f) => Number(f.amount_paid),
+  },
+  {
+    key: 'amount_due',
+    label: 'Amount Due (₹)',
+    group: 'Financials',
+    accessor: (f) => Number(f.amount_due),
+  },
+  {
+    key: 'payment_note',
+    label: 'Payment Remarks / Notes',
+    group: 'Payment Details',
+    defaultSelected: true,
+    accessor: (f) => f.payment_note || '',
+  },
+  {
+    key: 'checked_in_at',
+    label: 'Checked-In At',
+    group: 'Audit & System',
+    defaultSelected: true,
+    accessor: (f) =>
+      f.checked_in_at ? new Date(f.checked_in_at).toLocaleString('en-IN') : '',
+  },
+  {
+    key: 'checked_in_by',
+    label: 'Checked-In By',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (f) => f.checked_in_by || '',
+  },
+  {
+    key: 'id',
+    label: 'Check-In ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (f) => f.id,
+  },
+];
 
 interface FeeManagerProps {
   initialFees: FeeRecord[];
@@ -163,44 +265,6 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
     setTimeout(() => setCopiedDues(false), 2500);
   }
 
-  function handleExportCsv() {
-    const headers = [
-      'Attendee Name',
-      'Person Type',
-      'Phone',
-      'Parish/Ministry',
-      'Payment Status',
-      'Payment Method',
-      'Amount Paid (INR)',
-      'Amount Due (INR)',
-      'Checked-In At',
-      'Payment Remarks',
-    ];
-
-    const rows = filteredFees.map((f) => [
-      `"${(f.display_name || '').replace(/"/g, '""')}"`,
-      `"${f.person_type}"`,
-      `"${f.display_phone || ''}"`,
-      `"${((f.person_type === 'volunteer' ? f.volunteer_ministry || f.volunteer_role : f.participant_parish) || '').replace(/"/g, '""')}"`,
-      `"${formatFeeStatusLabel(f.payment_status)}"`,
-      `"${f.payment_method || 'None'}"`,
-      f.amount_paid,
-      f.amount_due,
-      `"${f.checked_in_at ? new Date(f.checked_in_at).toLocaleString('en-IN') : ''}"`,
-      `"${(f.payment_note || '').replace(/"/g, '""')}"`,
-    ]);
-
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `orah_2026_fees_export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -281,20 +345,15 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExportCsv}
-            disabled={filteredFees.length === 0}
-            className="h-8 text-xs cursor-pointer"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" x2="12" y1="15" y2="3" />
-            </svg>
-            Export CSV
-          </Button>
+          <ExportCsvDialog
+            title="Export Registration Fees"
+            description="Export checked-in attendees, volunteers, payment methods and outstanding dues to CSV."
+            defaultFilename={`orah_fees_export_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={fees}
+            filteredData={filteredFees}
+            fields={FEE_EXPORT_FIELDS}
+            storageKey="fees"
+          />
 
           <Button
             variant="ghost"

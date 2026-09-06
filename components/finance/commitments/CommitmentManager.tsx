@@ -22,6 +22,108 @@ import {
   deletePersonalCommitment as deleteCommitment,
   updatePersonalCommitment,
 } from '@/features/personal-commitments';
+import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+
+const COMMITMENT_EXPORT_FIELDS: ExportField<PersonalCommitmentRecord>[] = [
+  {
+    key: 'person_name',
+    label: 'Person Name',
+    group: 'Basic Details',
+    accessor: (c) => c.person_name,
+  },
+  {
+    key: 'mobile_number',
+    label: 'Mobile Number',
+    group: 'Basic Details',
+    defaultSelected: true,
+    accessor: (c) => c.mobile_number || '',
+  },
+  {
+    key: 'caller_name',
+    label: 'Caller / Follow-up By',
+    group: 'Basic Details',
+    defaultSelected: true,
+    accessor: (c) => c.caller_name || '',
+  },
+  {
+    key: 'promised',
+    label: 'Promised Amount (₹)',
+    group: 'Pledge & Financials',
+    accessor: (c) => Number(c.promised),
+  },
+  {
+    key: 'received',
+    label: 'Received Amount (₹)',
+    group: 'Pledge & Financials',
+    accessor: (c) => Number(c.received),
+  },
+  {
+    key: 'pending',
+    label: 'Pending Amount (₹)',
+    group: 'Pledge & Financials',
+    accessor: (c) => Math.max(0, Number(c.promised) - Number(c.received)),
+  },
+  {
+    key: 'status',
+    label: 'Commitment Status',
+    group: 'Status & Due Dates',
+    accessor: (c) => c.status,
+  },
+  {
+    key: 'money_type',
+    label: 'Payment Mode',
+    group: 'Pledge & Financials',
+    defaultSelected: false,
+    accessor: (c) => c.money_type || 'N/A',
+  },
+  {
+    key: 'is_handed_over',
+    label: 'Handover Status',
+    group: 'Pledge & Financials',
+    defaultSelected: false,
+    accessor: (c) =>
+      c.money_type === 'Cash'
+        ? c.is_handed_over === false
+          ? 'Pending'
+          : 'Handed Over'
+        : 'N/A (Digital)',
+  },
+  {
+    key: 'due_date',
+    label: 'Due Date',
+    group: 'Status & Due Dates',
+    defaultSelected: true,
+    accessor: (c) => c.due_date || '',
+  },
+  {
+    key: 'prayer_request',
+    label: 'Prayer Request',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (c) => c.prayer_request || '',
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    group: 'Additional Info',
+    defaultSelected: false,
+    accessor: (c) => c.notes || '',
+  },
+  {
+    key: 'id',
+    label: 'Record ID',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (c) => c.id,
+  },
+  {
+    key: 'created_at',
+    label: 'Created At',
+    group: 'Audit & System',
+    defaultSelected: false,
+    accessor: (c) => (c.created_at ? new Date(c.created_at).toLocaleString('en-IN') : ''),
+  },
+];
 
 interface CommitmentManagerProps {
   initialCommitments: PersonalCommitmentRecord[];
@@ -201,6 +303,16 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
             </svg>
             {isRefreshing ? 'Syncing…' : 'Refresh'}
           </Button>
+
+          <ExportCsvDialog
+            title="Export Personal Commitments"
+            description="Export individual pledges, received contributions, and pending balances to CSV."
+            defaultFilename={`orah_personal_commitments_${new Date().toISOString().slice(0, 10)}.csv`}
+            data={commitments}
+            filteredData={filteredCommitments}
+            fields={COMMITMENT_EXPORT_FIELDS}
+            storageKey="personal_commitments"
+          />
 
           <AddPersonalCommitmentDialog onSuccess={handleRefresh} />
         </div>

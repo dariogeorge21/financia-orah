@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
-import type { CouponRecord, MoneyType } from '@/lib/types';
-import { formatINR } from '@/lib/calculations';
+import type { CouponRecord, CouponPaymentMode } from '@/lib/types';
+import { formatINR, calcCouponSummary } from '@/lib/calculations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +42,7 @@ const COUPON_EXPORT_FIELDS: ExportField<CouponRecord>[] = [
   },
   {
     key: 'amount',
-    label: 'Amount (₹)',
+    label: 'Total Amount (₹)',
     group: 'Financials',
     accessor: (c) => Number(c.amount),
   },
@@ -53,11 +53,35 @@ const COUPON_EXPORT_FIELDS: ExportField<CouponRecord>[] = [
     accessor: (c) => c.money_type,
   },
   {
-    key: 'is_handed_over',
-    label: 'Handover Status',
+    key: 'cash_amount',
+    label: 'Cash Portion (₹)',
     group: 'Financials',
+    defaultSelected: false,
     accessor: (c) =>
       c.money_type === 'Cash'
+        ? Number(c.amount)
+        : c.cash_amount != null
+        ? Number(c.cash_amount)
+        : '',
+  },
+  {
+    key: 'upi_amount',
+    label: 'UPI Portion (₹)',
+    group: 'Financials',
+    defaultSelected: false,
+    accessor: (c) =>
+      c.money_type === 'UPI'
+        ? Number(c.amount)
+        : c.upi_amount != null
+        ? Number(c.upi_amount)
+        : '',
+  },
+  {
+    key: 'is_handed_over',
+    label: 'Handover Status (Cash)',
+    group: 'Financials',
+    accessor: (c) =>
+      c.money_type === 'Cash' || c.money_type === 'Cash + UPI'
         ? c.is_handed_over === false
           ? 'Pending'
           : 'Handed Over'
@@ -114,7 +138,7 @@ interface CouponManagerProps {
 export function CouponManager({ initialCoupons }: CouponManagerProps) {
   const [coupons, setCoupons] = useState<CouponRecord[]>(initialCoupons);
   const [searchQuery, setSearchQuery] = useState('');
-  const [moneyTypeFilter, setMoneyTypeFilter] = useState<'ALL' | 'Cash' | 'UPI'>('ALL');
+  const [moneyTypeFilter, setMoneyTypeFilter] = useState<'ALL' | CouponPaymentMode>('ALL');
   const [viewMode, setViewMode] = useViewMode('coupons');
 
   const [isRefreshing, startRefresh] = useTransition();
@@ -142,30 +166,14 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
     });
   }, [coupons, searchQuery, moneyTypeFilter]);
 
-  // Aggregate Metrics
-  const totalAmount = useMemo(() => {
-    return coupons.reduce((sum, c) => sum + Number(c.amount), 0);
-  }, [coupons]);
-
-  const cashAmount = useMemo(() => {
-    return coupons.filter((c) => c.money_type === 'Cash').reduce((sum, c) => sum + Number(c.amount), 0);
-  }, [coupons]);
-
-  const cashHandedOver = useMemo(() => {
-    return coupons
-      .filter((c) => c.money_type === 'Cash' && c.is_handed_over !== false)
-      .reduce((sum, c) => sum + Number(c.amount), 0);
-  }, [coupons]);
-
-  const cashPending = useMemo(() => {
-    return coupons
-      .filter((c) => c.money_type === 'Cash' && c.is_handed_over === false)
-      .reduce((sum, c) => sum + Number(c.amount), 0);
-  }, [coupons]);
-
-  const upiAmount = useMemo(() => {
-    return coupons.filter((c) => c.money_type === 'UPI').reduce((sum, c) => sum + Number(c.amount), 0);
-  }, [coupons]);
+  // Aggregate Metrics using central calcCouponSummary
+  const summary = useMemo(() => calcCouponSummary(coupons), [coupons]);
+  const totalAmount = summary.totalAmount;
+  const cashAmount = summary.cashAmount;
+  const cashHandedOver = summary.cashHandedOver;
+  const cashPending = summary.cashPending;
+  const upiAmount = summary.upiAmount;
+  const splitCount = summary.splitCount;
 
   async function handleToggleHandover(coupon: CouponRecord) {
     const nextVal = coupon.is_handed_over === false ? true : false;
@@ -229,8 +237,13 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
           <div className="mt-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {formatINR(totalAmount)}
           </div>
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            From {coupons.length} coupon receipts
+          <div className="mt-1 text-[11px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+            <span>From {coupons.length} coupon receipts</span>
+            {splitCount > 0 && (
+              <span className="inline-flex items-center px-1.5 py-0.2 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-[10px]">
+                {splitCount} Split (Cash+UPI)
+              </span>
+            )}
           </div>
         </div>
 
@@ -249,7 +262,9 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                 In Hand: {formatINR(cashHandedOver)} • Pending: {formatINR(cashPending)}
               </span>
             ) : (
-              `${coupons.filter((c) => c.money_type === 'Cash').length} cash contributions`
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                All Cash In Hand: {formatINR(cashHandedOver)}
+              </span>
             )}
           </div>
         </div>
@@ -264,7 +279,7 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
             {formatINR(upiAmount)}
           </div>
           <div className="mt-1 text-[11px] text-muted-foreground">
-            {coupons.filter((c) => c.money_type === 'UPI').length} digital transfers
+            {formatINR(upiAmount)} in bank transfers
           </div>
         </div>
 
@@ -321,7 +336,7 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
         <div className="flex flex-wrap items-center gap-2">
           {/* Mode Filter */}
           <div className="flex items-center rounded-lg border border-border/50 bg-muted/20 p-1 text-xs">
-            {(['ALL', 'Cash', 'UPI'] as const).map((m) => (
+            {(['ALL', 'Cash', 'UPI', 'Cash + UPI'] as const).map((m) => (
               <button
                 key={m}
                 onClick={() => setMoneyTypeFilter(m)}
@@ -385,7 +400,34 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {c.money_type === 'Cash' ? (
+                    {c.money_type === 'Cash + UPI' ? (
+                      <>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 text-indigo-700 border-indigo-500/30 bg-gradient-to-r from-emerald-50/70 to-indigo-50/70 dark:from-emerald-950/30 dark:to-indigo-950/30 dark:text-indigo-300 font-semibold"
+                        >
+                          Cash + UPI
+                        </Badge>
+                        {c.is_handed_over === false ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleHandover(c)}
+                            title="Cash portion is pending with volunteer. Click to mark handed over to finance."
+                            className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Cash Pending
+                          </button>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                          >
+                            Cash In Hand
+                          </Badge>
+                        )}
+                      </>
+                    ) : c.money_type === 'Cash' ? (
                       c.is_handed_over === false ? (
                         <button
                           type="button"
@@ -445,6 +487,17 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                       </span>
                     )}
                   </div>
+
+                  {c.money_type === 'Cash + UPI' && (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[11px] font-mono">
+                      <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.5 font-medium text-[10px]">
+                        Cash: {formatINR(c.cash_amount != null ? Number(c.cash_amount) : 0)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 font-medium text-[10px]">
+                        UPI: {formatINR(c.upi_amount != null ? Number(c.upi_amount) : 0)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Details Footer: Volunteer & Notes */}
@@ -555,11 +608,45 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-bold text-emerald-600 dark:text-emerald-400">
-                      +{formatINR(c.amount)}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="font-bold text-emerald-600 dark:text-emerald-400">
+                        +{formatINR(c.amount)}
+                      </div>
+                      {c.money_type === 'Cash + UPI' && (
+                        <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                          ₹{c.cash_amount ?? 0} Cash + ₹{c.upi_amount ?? 0} UPI
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {c.money_type === 'Cash' ? (
+                      {c.money_type === 'Cash + UPI' ? (
+                        <div className="flex items-center gap-1.5">
+                          <Badge
+                            variant="outline"
+                            className="text-xs text-indigo-700 border-indigo-500/30 bg-gradient-to-r from-emerald-50/70 to-indigo-50/70 dark:from-emerald-950/30 dark:to-indigo-950/30 dark:text-indigo-300 font-semibold"
+                          >
+                            Cash + UPI
+                          </Badge>
+                          {c.is_handed_over === false ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHandover(c)}
+                              title="Cash portion pending with volunteer. Click to mark handed over to finance."
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Cash Pending
+                            </button>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            >
+                              Cash In Hand
+                            </Badge>
+                          )}
+                        </div>
+                      ) : c.money_type === 'Cash' ? (
                         c.is_handed_over === false ? (
                           <button
                             type="button"

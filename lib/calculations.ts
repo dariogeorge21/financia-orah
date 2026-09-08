@@ -257,23 +257,50 @@ export function calcChurchSummary(donations: ChurchDonationRecord[]): ChurchSumm
 }
 
 export function calcCouponSummary(coupons: CouponRecord[]): CouponSummary {
-  const totalAmount = coupons.reduce((s, c) => s + Number(c.amount), 0);
-  const upiAmount = coupons
-    .filter((c) => c.money_type === 'UPI')
-    .reduce((s, c) => s + Number(c.amount), 0);
-  const cashHandedOver = coupons
-    .filter((c) => c.money_type === 'Cash' && c.is_handed_over !== false)
-    .reduce((s, c) => s + Number(c.amount), 0);
-  const cashPending = coupons
-    .filter((c) => c.money_type === 'Cash' && c.is_handed_over === false)
-    .reduce((s, c) => s + Number(c.amount), 0);
+  let totalAmount = 0;
+  let cashAmount = 0;
+  let upiAmount = 0;
+  let cashHandedOver = 0;
+  let cashPending = 0;
+  let splitCount = 0;
+
+  for (const c of coupons) {
+    const amt = Number(c.amount) || 0;
+    totalAmount += amt;
+
+    if (c.money_type === 'Cash + UPI') {
+      splitCount++;
+      const cAmt = c.cash_amount != null ? Number(c.cash_amount) : Math.max(0, amt - Number(c.upi_amount ?? 0));
+      const uAmt = c.upi_amount != null ? Number(c.upi_amount) : Math.max(0, amt - cAmt);
+
+      cashAmount += cAmt;
+      upiAmount += uAmt;
+
+      if (c.is_handed_over === false) {
+        cashPending += cAmt;
+      } else {
+        cashHandedOver += cAmt;
+      }
+    } else if (c.money_type === 'Cash') {
+      cashAmount += amt;
+      if (c.is_handed_over === false) {
+        cashPending += amt;
+      } else {
+        cashHandedOver += amt;
+      }
+    } else if (c.money_type === 'UPI') {
+      upiAmount += amt;
+    }
+  }
 
   return {
     totalAmount,
+    cashAmount,
     upiAmount,
     cashHandedOver,
     cashPending,
     count: coupons.length,
+    splitCount,
   };
 }
 

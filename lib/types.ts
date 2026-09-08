@@ -105,13 +105,17 @@ export interface FinanceCallRecord {
   created_at?: string;
 }
 
+export type CouponPaymentMode = 'Cash' | 'UPI' | 'Cash + UPI';
+
 export interface CouponRecord {
   id: string;
   contributor_name: string;
   mobile_number?: string | null;
   date: string;
-  money_type: MoneyType;
+  money_type: CouponPaymentMode;
   amount: number;
+  cash_amount?: number | null;
+  upi_amount?: number | null;
   is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;
@@ -232,10 +236,12 @@ export interface ChurchSummary {
 
 export interface CouponSummary {
   totalAmount: number;
+  cashAmount: number;
   upiAmount: number;
   cashHandedOver: number;
   cashPending: number;
   count: number;
+  splitCount: number;
 }
 
 export interface BudgetRow extends BudgetCategory {

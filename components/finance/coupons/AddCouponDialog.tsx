@@ -23,7 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { createCoupon } from '@/features/coupons';
 import { formatINR, calcMoneyPosition, getTodayDateString } from '@/lib/calculations';
-import type { MoneyType, MoneyPosition } from '@/lib/types';
+import type { CouponPaymentMode, MoneyPosition } from '@/lib/types';
 import { useBalanceNotification } from '@/components/finance/BalanceNotificationProvider';
 
 interface AddCouponDialogProps {
@@ -58,9 +58,11 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
     contributor_name: '',
     mobile_number: '',
     date: getTodayDateString(),
-    money_type: 'Cash' as MoneyType,
+    money_type: 'Cash' as CouponPaymentMode,
     is_handed_over: false,
     amount: '',
+    cash_amount: '',
+    upi_amount: '',
     collected_by: '',
     booklet_number: '',
     notes: '',
@@ -75,21 +77,56 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
   const activePosition = moneyPosition ?? livePosition;
   const currentCash = activePosition?.cashAvailable ?? 0;
   const currentUpi = activePosition?.upiAvailable ?? 0;
-  const beforeAmount = form.money_type === 'Cash' ? currentCash : currentUpi;
+
+  const cashSplitNum = parseFloat(form.cash_amount) || 0;
+  const upiSplitNum = parseFloat(form.upi_amount) || 0;
+  const calculatedSplitTotal = cashSplitNum + upiSplitNum;
+
+  const beforeAmount =
+    form.money_type === 'Cash'
+      ? currentCash
+      : form.money_type === 'UPI'
+      ? currentUpi
+      : currentCash + currentUpi;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    const amountNum = parseFloat(form.amount);
     if (!form.contributor_name.trim()) {
       setError('Please enter the contributor name.');
       return;
     }
 
-    if (isNaN(amountNum) || amountNum <= 0) {
-      setError('Please enter a valid amount greater than 0.');
-      return;
+    let finalAmount = 0;
+    let finalCashAmt: number | null = null;
+    let finalUpiAmt: number | null = null;
+
+    if (form.money_type === 'Cash + UPI') {
+      if (cashSplitNum <= 0) {
+        setError('Please enter a valid Cash amount greater than 0.');
+        return;
+      }
+      if (upiSplitNum <= 0) {
+        setError('Please enter a valid UPI amount greater than 0.');
+        return;
+      }
+      finalAmount = calculatedSplitTotal;
+      finalCashAmt = cashSplitNum;
+      finalUpiAmt = upiSplitNum;
+    } else {
+      finalAmount = parseFloat(form.amount);
+      if (isNaN(finalAmount) || finalAmount <= 0) {
+        setError('Please enter a valid amount greater than 0.');
+        return;
+      }
+      if (form.money_type === 'Cash') {
+        finalCashAmt = finalAmount;
+        finalUpiAmt = 0;
+      } else {
+        finalCashAmt = 0;
+        finalUpiAmt = finalAmount;
+      }
     }
 
     startTransition(async () => {
@@ -99,7 +136,9 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
           mobile_number: form.mobile_number.trim() || null,
           date: form.date || new Date().toISOString().split('T')[0],
           money_type: form.money_type,
-          amount: amountNum,
+          amount: finalAmount,
+          cash_amount: finalCashAmt,
+          upi_amount: finalUpiAmt,
           is_handed_over: form.money_type === 'UPI' ? true : form.is_handed_over,
           collected_by: form.collected_by.trim() || null,
           booklet_number: form.booklet_number.trim() || null,
@@ -110,12 +149,17 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
 
         notifyTransaction({
           type: 'income',
-          title: `Coupon: ${form.contributor_name.trim()}`,
-          description: form.booklet_number ? `Booklet #${form.booklet_number}` : 'Coupon collection',
-          moneyType: form.money_type,
+          title: `Coupon: ${form.contributor_name.trim()} (${form.money_type})`,
+          description:
+            form.money_type === 'Cash + UPI'
+              ? `${form.booklet_number ? `Booklet #${form.booklet_number} • ` : ''}Cash: ${formatINR(cashSplitNum)} + UPI: ${formatINR(upiSplitNum)}`
+              : form.booklet_number
+              ? `Booklet #${form.booklet_number}`
+              : 'Coupon collection',
+          moneyType: form.money_type === 'Cash + UPI' ? 'Cash' : form.money_type,
           beforeAmount: beforeAmount,
-          deltaAmount: amountNum,
-          afterAmount: beforeAmount + amountNum,
+          deltaAmount: finalAmount,
+          afterAmount: beforeAmount + finalAmount,
         });
 
         setForm({
@@ -125,6 +169,8 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
           money_type: 'Cash',
           is_handed_over: false,
           amount: '',
+          cash_amount: '',
+          upi_amount: '',
           collected_by: '',
           booklet_number: '',
           notes: '',
@@ -214,8 +260,8 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
             </div>
           </div>
 
-          {/* Date, Money Type & Amount */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Date & Money Type */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="date">Date</Label>
               <Input
@@ -227,20 +273,72 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="money_type">Money Type *</Label>
+              <Label htmlFor="money_type">Payment Mode *</Label>
               <Select
                 value={form.money_type}
-                onValueChange={(val) => set('money_type', val as MoneyType)}
+                onValueChange={(val) => set('money_type', val as CouponPaymentMode)}
               >
                 <SelectTrigger id="money_type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Cash">Cash</SelectItem>
-                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="Cash">Cash Only</SelectItem>
+                  <SelectItem value="UPI">UPI / Digital Only</SelectItem>
+                  <SelectItem value="Cash + UPI">Cash + UPI (Split)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Amount Inputs: Split Mode vs Single Mode */}
+          {form.money_type === 'Cash + UPI' ? (
+            <div className="rounded-xl border border-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/20 p-3.5 space-y-3">
+              <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-emerald-500 to-indigo-500" />
+                  Split Payment Breakdown
+                </span>
+                <span className="text-[11px] font-mono font-medium text-muted-foreground">
+                  Total: <strong className="text-foreground">{formatINR(calculatedSplitTotal)}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="cash_amount" className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+                    Cash Portion (₹) *
+                  </Label>
+                  <Input
+                    id="cash_amount"
+                    type="number"
+                    min="1"
+                    step="any"
+                    placeholder="e.g. 3000"
+                    value={form.cash_amount}
+                    onChange={(e) => set('cash_amount', e.target.value)}
+                    className="border-emerald-500/30 focus-visible:ring-emerald-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="upi_amount" className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                    UPI Portion (₹) *
+                  </Label>
+                  <Input
+                    id="upi_amount"
+                    type="number"
+                    min="1"
+                    step="any"
+                    placeholder="e.g. 2000"
+                    value={form.upi_amount}
+                    onChange={(e) => set('upi_amount', e.target.value)}
+                    className="border-indigo-500/30 focus-visible:ring-indigo-500"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
             <div className="space-y-1.5">
               <Label htmlFor="amount">Amount (₹) *</Label>
               <Input
@@ -254,17 +352,21 @@ export function AddCouponDialog({ onSuccess, trigger, moneyPosition }: AddCoupon
                 required
               />
             </div>
-          </div>
+          )}
 
-          {/* Cash Handed Over Toggle */}
-          {form.money_type === 'Cash' && (
+          {/* Cash Handed Over Toggle (for Cash or Cash portion of Cash + UPI) */}
+          {(form.money_type === 'Cash' || form.money_type === 'Cash + UPI') && (
             <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-50/50 dark:bg-amber-950/20 p-3">
               <div className="space-y-0.5 pr-2">
                 <Label htmlFor="cpn-handed-over" className="text-xs font-semibold text-foreground cursor-pointer">
-                  Cash Handed Over to Finance Team?
+                  {form.money_type === 'Cash + UPI'
+                    ? `Cash Portion Handed Over to Finance?${cashSplitNum > 0 ? ` (${formatINR(cashSplitNum)})` : ''}`
+                    : 'Cash Handed Over to Finance Team?'}
                 </Label>
                 <p className="text-[11px] text-muted-foreground">
-                  Toggle ON if the volunteer has already handed the collected cash to finance.
+                  {form.money_type === 'Cash + UPI'
+                    ? 'Toggle ON if the volunteer has already handed the cash portion over to finance.'
+                    : 'Toggle ON if the volunteer has already handed the collected cash to finance.'}
                 </p>
               </div>
               <Switch

@@ -1,13 +1,14 @@
 // features/coupons/api.ts
 // Client-side API functions for interacting with the /api/coupons endpoints
 
-import type { CouponRecord, MoneyType } from '@/lib/types';
+import type { CouponRecord, CouponPaymentMode } from '@/lib/types';
 
 export interface CouponSummary {
   totalAmount: number;
   cashAmount: number;
   upiAmount: number;
   totalCount: number;
+  splitCount?: number;
 }
 
 export interface CouponApiResponse {
@@ -31,8 +32,10 @@ export interface CreateCouponInput {
   contributor_name: string;
   mobile_number?: string | null;
   date?: string;
-  money_type: MoneyType;
+  money_type: CouponPaymentMode;
   amount: number;
+  cash_amount?: number | null;
+  upi_amount?: number | null;
   is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;
@@ -45,8 +48,10 @@ export interface UpdateCouponInput {
   contributor_name?: string;
   mobile_number?: string | null;
   date?: string;
-  money_type?: MoneyType;
+  money_type?: CouponPaymentMode;
   amount?: number;
+  cash_amount?: number | null;
+  upi_amount?: number | null;
   is_handed_over?: boolean | null;
   collected_by?: string | null;
   booklet_number?: string | null;

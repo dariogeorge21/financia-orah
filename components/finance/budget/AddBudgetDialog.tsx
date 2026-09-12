@@ -37,7 +37,7 @@ export function AddBudgetDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [categoryType, setCategoryType] = useState('Mobilisation');
+  const [categoryType, setCategoryType] = useState('Food');
   const [customCategory, setCustomCategory] = useState('');
   const [planned, setPlanned] = useState('');
   const [description, setDescription] = useState('');
@@ -74,7 +74,7 @@ export function AddBudgetDialog({
         });
 
         setOpen(false);
-        setCategoryType('Mobilisation');
+        setCategoryType('Food');
         setCustomCategory('');
         setPlanned('');
         setDescription('');

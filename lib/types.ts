@@ -17,33 +17,56 @@ export type IncomeType =
   | (string & {});
 
 export type ExpenseCategory =
-  | 'Mobilisation'
-  | 'Medical'
-  | 'Printing'
-  | 'Decoration'
-  | 'AV'
-  | 'Light & Sound'
-  | 'Stationery'
-  | 'Transport (Fuel)'
-  | 'TA'
-  | 'Security'
   | 'Food'
+  | 'Light and Sound'
+  | 'Decoration (Arts)'
+  | 'Material'
+  | 'Mobilisation'
+  | 'Confession + Counselling'
+  | 'Resource Caring'
+  | 'Office'
+  | 'Registration'
+  | 'AV'
+  | 'Music'
+  | 'Rent'
+  | 'Volunteers Training'
+  | 'Medical'
+  | 'Intercession'
+  | 'Media'
   | 'Venue'
+  | 'Fuel'
+  | 'Local Arrangement & Purchase'
+  | 'Accommodation'
+  | 'Extra (Miscellaneous)'
+  | 'Cleaning'
+  | 'Band'
+  | 'Other'
   | string;
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Mobilisation',
-  'Medical',
-  'Printing',
-  'Decoration',
-  'AV',
-  'Light & Sound',
-  'Stationery',
-  'Transport (Fuel)',
-  'TA',
-  'Security',
   'Food',
+  'Light and Sound',
+  'Decoration (Arts)',
+  'Material',
+  'Mobilisation',
+  'Confession + Counselling',
+  'Resource Caring',
+  'Office',
+  'Registration',
+  'AV',
+  'Music',
+  'Rent',
+  'Volunteers Training',
+  'Medical',
+  'Intercession',
+  'Media',
   'Venue',
+  'Fuel',
+  'Local Arrangement & Purchase',
+  'Accommodation',
+  'Extra (Miscellaneous)',
+  'Cleaning',
+  'Band',
 ];
 
 export const BUDGET_CATEGORIES = EXPENSE_CATEGORIES;

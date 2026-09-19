@@ -26,6 +26,9 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteIncome, updateIncome } from '@/features/income';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const TYPE_COLORS: Record<string, string> = {
   Registration: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -232,6 +235,90 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
       return matchesSearch && matchesType && matchesMoneyType;
     });
   }, [income, searchQuery, typeFilter, moneyTypeFilter]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'date', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedIncome = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredIncome;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredIncome].sort((a, b) => {
+      if (sortState.field === 'amount') {
+        return (Number(a.amount) - Number(b.amount)) * dir;
+      }
+      if (sortState.field === 'date') {
+        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredIncome, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedIncome = useMemo(() => {
+    return sortedIncome.filter((i) => selectedIds.has(i.id));
+  }, [sortedIncome, selectedIds]);
+
+  const selectiveCashTotal = useMemo(
+    () => selectedIncome.filter((i) => i.money_type === 'Cash').reduce((s, i) => s + Number(i.amount), 0),
+    [selectedIncome]
+  );
+  const selectiveUpiTotal = useMemo(
+    () => selectedIncome.filter((i) => i.money_type === 'UPI').reduce((s, i) => s + Number(i.amount), 0),
+    [selectedIncome]
+  );
+  const selectiveGrandTotal = selectiveCashTotal + selectiveUpiTotal;
+
+  // Filtered Summary Totals for Table Footer
+  const filteredCashTotal = useMemo(
+    () => filteredIncome.filter((i) => i.money_type === 'Cash').reduce((s, i) => s + Number(i.amount), 0),
+    [filteredIncome]
+  );
+  const filteredUpiTotal = useMemo(
+    () => filteredIncome.filter((i) => i.money_type === 'UPI').reduce((s, i) => s + Number(i.amount), 0),
+    [filteredIncome]
+  );
+  const filteredGrandTotal = filteredCashTotal + filteredUpiTotal;
+
+  const isAllSelected = sortedIncome.length > 0 && selectedIncome.length === sortedIncome.length;
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedIncome.map((i) => i.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
 
   async function handleToggleHandover(inc: IncomeRecord) {
     const nextVal = inc.is_handed_over === false ? true : false;
@@ -629,145 +716,219 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Date', 'Type', 'Contributor', 'Mobile', 'Description', 'Amount', 'Mode', 'Ref / Notes', 'Actions'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  <th className="w-10 px-4 py-3 text-left">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all rows"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="date" currentSort={sortState} onSort={handleSort}>
+                    Date
+                  </SortableHeader>
+                  <SortableHeader field="type" currentSort={sortState} onSort={handleSort}>
+                    Type
+                  </SortableHeader>
+                  <SortableHeader field="contributor" currentSort={sortState} onSort={handleSort}>
+                    Contributor
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mobile
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Description
+                  </th>
+                  <SortableHeader field="amount" currentSort={sortState} onSort={handleSort}>
+                    Amount
+                  </SortableHeader>
+                  <SortableHeader field="money_type" currentSort={sortState} onSort={handleSort}>
+                    Mode
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Ref / Notes
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredIncome.map((inc) => (
-                  <tr key={inc.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {inc.id}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                      {inc.date}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
-                          TYPE_COLORS[inc.type] ?? 'bg-slate-100 text-slate-700'
-                        }`}
-                      >
-                        {inc.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <span>{inc.contributor}</span>
-                        {inc.screenshot_link && (
-                          <a
-                            href={inc.screenshot_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
-                            title="View Payment Screenshot"
-                          >
-                            Receipt ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {inc.mobile_number || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description || ''}>
-                      {inc.description || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-left font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
-                      {formatINR(inc.amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {inc.money_type === 'Cash' ? (
-                        inc.is_handed_over === false ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHandover(inc)}
-                            title="Pending with volunteer. Click to mark handed over to finance."
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            Pending Handover
-                          </button>
+                {sortedIncome.map((inc) => {
+                  const isSelected = selectedIds.has(inc.id);
+                  return (
+                    <tr
+                      key={inc.id}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isSelected && 'bg-primary/5 dark:bg-primary/10'
+                      )}
+                    >
+                      <td className="w-10 px-4 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(inc.id)}
+                          aria-label={`Select ${inc.contributor}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {inc.id}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                        {inc.date}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                            TYPE_COLORS[inc.type] ?? 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {inc.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{inc.contributor}</span>
+                          {inc.screenshot_link && (
+                            <a
+                              href={inc.screenshot_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                              title="View Payment Screenshot"
+                            >
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {inc.mobile_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate" title={inc.description || ''}>
+                        {inc.description || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-left font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        {formatINR(inc.amount)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {inc.money_type === 'Cash' ? (
+                          inc.is_handed_over === false ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHandover(inc)}
+                              title="Pending with volunteer. Click to mark handed over to finance."
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Pending Handover
+                            </button>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            >
+                              Cash • In Hand
+                            </Badge>
+                          )
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
                           >
-                            Cash • In Hand
+                            UPI
                           </Badge>
-                        )
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
-                        >
-                          UPI
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground max-w-[150px] truncate" title={inc.reference_id || inc.notes || ''}>
-                      {inc.reference_id || inc.commitment_id ? (
-                        <span className="font-mono text-primary font-medium">
-                          {inc.reference_id || inc.commitment_id}
-                        </span>
-                      ) : (
-                        inc.notes || '—'
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setEditingIncome(inc)}
-                          className="text-xs"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDeletingIncome(inc)}
-                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground max-w-[150px] truncate" title={inc.reference_id || inc.notes || ''}>
+                        {inc.reference_id || inc.commitment_id ? (
+                          <span className="font-mono text-primary font-medium">
+                            {inc.reference_id || inc.commitment_id}
+                          </span>
+                        ) : (
+                          inc.notes || '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setEditingIncome(inc)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setDeletingIncome(inc)}
+                            className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                {filteredIncome.length === 0 && (
+                {sortedIncome.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No income transactions found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={6} className="px-4 py-3 text-sm text-foreground">
-                    Total Income
+                <tr className="border-t border-border bg-muted/25 font-medium text-xs">
+                  <td colSpan={5} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">Filtered Totals</span>
+                      <span className="text-muted-foreground">({filteredIncome.length} records)</span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-left text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatINR(total)}
+                  <td colSpan={3} className="px-4 py-3.5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Cash:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredCashTotal)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">UPI:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredUpiTotal)}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={3} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total (CASH+UPI):</span>
+                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        {formatINR(filteredGrandTotal)}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedIncome.length}
+        totalFilteredCount={sortedIncome.length}
+        cashTotal={selectiveCashTotal}
+        upiTotal={selectiveUpiTotal}
+        grandTotal={selectiveGrandTotal}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
 
       {/* Edit Dialog */}
       <EditIncomeDialog

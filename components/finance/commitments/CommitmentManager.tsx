@@ -23,6 +23,9 @@ import {
   updatePersonalCommitment,
 } from '@/features/personal-commitments';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const COMMITMENT_EXPORT_FIELDS: ExportField<PersonalCommitmentRecord>[] = [
   {
@@ -208,6 +211,112 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
       return matchesSearch && matchesStatus;
     });
   }, [commitments, searchQuery, statusFilter, todayStr]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'id', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedCommitments = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredCommitments;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredCommitments].sort((a, b) => {
+      if (sortState.field === 'promised') {
+        return (Number(a.promised) - Number(b.promised)) * dir;
+      }
+      if (sortState.field === 'received') {
+        return (Number(a.received) - Number(b.received)) * dir;
+      }
+      if (sortState.field === 'pending') {
+        const pendingA = Math.max(0, Number(a.promised) - Number(a.received));
+        const pendingB = Math.max(0, Number(b.promised) - Number(b.received));
+        return (pendingA - pendingB) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredCommitments, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedCommitments = useMemo(() => {
+    return sortedCommitments.filter((c) => selectedIds.has(c.id));
+  }, [sortedCommitments, selectedIds]);
+
+  const selectiveCashReceived = useMemo(
+    () => selectedCommitments.filter((c) => c.money_type === 'Cash').reduce((s, c) => s + Number(c.received), 0),
+    [selectedCommitments]
+  );
+  const selectiveUpiReceived = useMemo(
+    () => selectedCommitments.filter((c) => c.money_type === 'UPI').reduce((s, c) => s + Number(c.received), 0),
+    [selectedCommitments]
+  );
+  const selectiveGrandTotal = selectiveCashReceived + selectiveUpiReceived;
+  const selectivePromised = useMemo(
+    () => selectedCommitments.reduce((s, c) => s + Number(c.promised), 0),
+    [selectedCommitments]
+  );
+  const selectivePending = useMemo(
+    () => selectedCommitments.reduce((s, c) => s + Math.max(0, Number(c.promised) - Number(c.received)), 0),
+    [selectedCommitments]
+  );
+
+  // Filtered Totals for Table Footer
+  const filteredCashReceived = useMemo(
+    () => filteredCommitments.filter((c) => c.money_type === 'Cash').reduce((s, c) => s + Number(c.received), 0),
+    [filteredCommitments]
+  );
+  const filteredUpiReceived = useMemo(
+    () => filteredCommitments.filter((c) => c.money_type === 'UPI').reduce((s, c) => s + Number(c.received), 0),
+    [filteredCommitments]
+  );
+  const filteredPromised = useMemo(
+    () => filteredCommitments.reduce((s, c) => s + Number(c.promised), 0),
+    [filteredCommitments]
+  );
+  const filteredReceived = useMemo(
+    () => filteredCommitments.reduce((s, c) => s + Number(c.received), 0),
+    [filteredCommitments]
+  );
+  const filteredPending = useMemo(
+    () => filteredCommitments.reduce((s, c) => s + Math.max(0, Number(c.promised) - Number(c.received)), 0),
+    [filteredCommitments]
+  );
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (selectedIds.size === sortedCommitments.length && sortedCommitments.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedCommitments.map((c) => c.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  const isAllSelected = sortedCommitments.length > 0 && sortedCommitments.every((c) => selectedIds.has(c.id));
+  const isSomeSelected = sortedCommitments.some((c) => selectedIds.has(c.id));
 
   // Handle Handover Toggle
   async function handleToggleHandover(com: PersonalCommitmentRecord) {
@@ -646,26 +755,75 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Person Name', 'Mobile', 'Caller', 'Promised By', 'Promised', 'Received', 'Pending', 'Progress', 'Status', 'Notes', 'Actions'].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th className="w-10 px-3 py-3 text-center">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="person_name" currentSort={sortState} onSort={handleSort}>
+                    Person Name
+                  </SortableHeader>
+                  <SortableHeader field="mobile_number" currentSort={sortState} onSort={handleSort}>
+                    Mobile
+                  </SortableHeader>
+                  <SortableHeader field="caller_name" currentSort={sortState} onSort={handleSort}>
+                    Caller
+                  </SortableHeader>
+                  <SortableHeader field="due_date" currentSort={sortState} onSort={handleSort}>
+                    Promised By
+                  </SortableHeader>
+                  <SortableHeader field="promised" currentSort={sortState} onSort={handleSort}>
+                    Promised
+                  </SortableHeader>
+                  <SortableHeader field="received" currentSort={sortState} onSort={handleSort}>
+                    Received
+                  </SortableHeader>
+                  <SortableHeader field="pending" currentSort={sortState} onSort={handleSort}>
+                    Pending
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Progress
+                  </th>
+                  <SortableHeader field="status" currentSort={sortState} onSort={handleSort}>
+                    Status
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredCommitments.map((com) => {
+                {sortedCommitments.map((com) => {
                   const pct =
                     com.promised > 0
                       ? Math.round((Number(com.received) / Number(com.promised)) * 100)
                       : 0;
                   const pendingAmt = Math.max(0, Number(com.promised) - Number(com.received));
+                  const isSelected = selectedIds.has(com.id);
 
                   return (
-                    <tr key={com.id} className="transition-colors hover:bg-muted/20">
+                    <tr
+                      key={com.id}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isSelected && 'bg-primary/5'
+                      )}
+                    >
+                      <td className="w-10 px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(com.id)}
+                          aria-label={`Select ${com.person_name}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
                         {com.id}
                       </td>
@@ -740,7 +898,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                               title={com.is_handed_over === false ? 'Click to mark as Handed Over to Finance' : 'Click to mark as Pending Handover'}
                               className={`text-[10px] font-mono px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                                 com.money_type === 'Cash' && com.is_handed_over === false
-                                  ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
+                                   ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 hover:bg-amber-200'
                                   : 'bg-muted text-muted-foreground hover:bg-accent'
                               }`}
                             >
@@ -809,27 +967,40 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                   );
                 })}
 
-                {filteredCommitments.length === 0 && (
+                {sortedCommitments.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={13} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No commitments found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={4} className="px-4 py-3 text-sm">
-                    Total ({active.length} Active)
+                <tr className="border-t border-border bg-muted/30 font-semibold">
+                  <td colSpan={6} className="px-4 py-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-foreground">
+                        Total ({filteredCommitments.length} {filteredCommitments.length === 1 ? 'record' : 'records'})
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                        Cash: {formatINR(filteredCashReceived)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                        UPI: {formatINR(filteredUpiReceived)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-foreground/5 px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                        Total Received (CASH+UPI): {formatINR(filteredCashReceived + filteredUpiReceived)}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-foreground">
-                    {formatINR(totalPromised)}
+                  <td className="px-4 py-3 text-sm font-bold text-foreground whitespace-nowrap">
+                    {formatINR(filteredPromised)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatINR(totalReceived)}
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    {formatINR(filteredReceived)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-                    {formatINR(totalPending)}
+                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                    {formatINR(filteredPending)}
                   </td>
                   <td colSpan={4} />
                 </tr>
@@ -888,6 +1059,20 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedIds.size}
+        totalFilteredCount={sortedCommitments.length}
+        cashTotal={selectiveCashReceived}
+        upiTotal={selectiveUpiReceived}
+        grandTotal={selectiveGrandTotal}
+        extraTotalLabel="Pending"
+        extraTotalAmount={selectivePending}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
     </div>
   );
 }

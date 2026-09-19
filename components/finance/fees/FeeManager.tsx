@@ -12,6 +12,8 @@ import { fetchFeeData } from '@/features/fees';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
 
 const FEE_EXPORT_FIELDS: ExportField<FeeRecord>[] = [
   {
@@ -198,6 +200,96 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
   const filteredSummary = useMemo(() => {
     return calcFeeSummary(filteredFees);
   }, [filteredFees]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'checked_in_at', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedFees = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredFees;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredFees].sort((a, b) => {
+      if (sortState.field === 'amount_paid' || sortState.field === 'amount_due') {
+        const numA = Number((a as unknown as Record<string, unknown>)[sortState.field!]) || 0;
+        const numB = Number((b as unknown as Record<string, unknown>)[sortState.field!]) || 0;
+        return (numA - numB) * dir;
+      }
+      if (sortState.field === 'checked_in_at') {
+        const timeA = a.checked_in_at ? new Date(a.checked_in_at).getTime() : 0;
+        const timeB = b.checked_in_at ? new Date(b.checked_in_at).getTime() : 0;
+        return (timeA - timeB) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredFees, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedFees = useMemo(() => {
+    return sortedFees.filter((f) => selectedIds.has(f.id));
+  }, [sortedFees, selectedIds]);
+
+  const selectiveCashTotal = useMemo(
+    () =>
+      selectedFees
+        .filter((f) => (f.payment_method || '').toUpperCase() === 'CASH')
+        .reduce((s, f) => s + (Number(f.amount_paid) || 0), 0),
+    [selectedFees]
+  );
+  const selectiveUpiTotal = useMemo(
+    () =>
+      selectedFees
+        .filter((f) => (f.payment_method || '').toUpperCase() === 'UPI')
+        .reduce((s, f) => s + (Number(f.amount_paid) || 0), 0),
+    [selectedFees]
+  );
+  const selectiveGrandTotal = useMemo(
+    () => selectedFees.reduce((s, f) => s + (Number(f.amount_paid) || 0), 0),
+    [selectedFees]
+  );
+  const selectiveDueTotal = useMemo(
+    () => selectedFees.reduce((s, f) => s + (Number(f.amount_due) || 0), 0),
+    [selectedFees]
+  );
+
+  const isAllSelected = sortedFees.length > 0 && selectedFees.length === sortedFees.length;
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedFees.map((f) => f.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
 
   function handleRefresh() {
     startRefresh(async () => {
@@ -733,19 +825,41 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-border/60 bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                 <tr>
-                  <th className="py-3.5 px-4">Attendee</th>
-                  <th className="py-3.5 px-3">Type</th>
+                  <th className="w-10 py-3.5 px-4 text-left">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all attendees"
+                    />
+                  </th>
+                  <SortableHeader field="display_name" currentSort={sortState} onSort={handleSort}>
+                    Attendee
+                  </SortableHeader>
+                  <SortableHeader field="person_type" currentSort={sortState} onSort={handleSort}>
+                    Type
+                  </SortableHeader>
                   <th className="py-3.5 px-3">Parish / Ministry</th>
-                  <th className="py-3.5 px-3">Status</th>
-                  <th className="py-3.5 px-3">Method</th>
-                  <th className="py-3.5 px-3 text-right">Paid</th>
-                  <th className="py-3.5 px-3 text-right">Due</th>
-                  <th className="py-3.5 px-4">Check-in Time</th>
+                  <SortableHeader field="payment_status" currentSort={sortState} onSort={handleSort}>
+                    Status
+                  </SortableHeader>
+                  <SortableHeader field="payment_method" currentSort={sortState} onSort={handleSort}>
+                    Method
+                  </SortableHeader>
+                  <SortableHeader field="amount_paid" currentSort={sortState} onSort={handleSort} align="right">
+                    Paid
+                  </SortableHeader>
+                  <SortableHeader field="amount_due" currentSort={sortState} onSort={handleSort} align="right">
+                    Due
+                  </SortableHeader>
+                  <SortableHeader field="checked_in_at" currentSort={sortState} onSort={handleSort}>
+                    Check-in Time
+                  </SortableHeader>
                   <th className="py-3.5 px-4">Remarks</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredFees.map((fee) => {
+                {sortedFees.map((fee) => {
+                  const isSelected = selectedIds.has(fee.id);
                   const status = (fee.payment_status || '').toLowerCase();
                   const isPaid = status === 'paid' || status === 'fully_paid';
                   const isPartial = status === 'partially_paid' || status === 'half_paid';
@@ -755,8 +869,19 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
                   return (
                     <tr
                       key={fee.id}
-                      className="hover:bg-muted/30 transition-colors"
+                      className={cn(
+                        'hover:bg-muted/30 transition-colors',
+                        isSelected && 'bg-primary/5 dark:bg-primary/10'
+                      )}
                     >
+                      <td className="w-10 py-3 px-4">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(fee.id)}
+                          aria-label={`Select ${fee.display_name}`}
+                        />
+                      </td>
+
                       {/* Attendee Name & Phone */}
                       <td className="py-3 px-4">
                         <div className="font-semibold text-foreground">
@@ -892,18 +1017,47 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="border-t border-border bg-muted/25 font-medium text-xs">
+                  <td colSpan={4} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">Filtered Totals</span>
+                      <span className="text-muted-foreground">({filteredFees.length} attendees)</span>
+                    </div>
+                  </td>
+                  <td colSpan={3} className="px-4 py-3.5">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Cash:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredSummary.cashCollected)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">UPI:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredSummary.upiCollected)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td colSpan={3} className="px-4 py-3.5 text-right">
+                    <div className="inline-flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total (CASH+UPI):</span>
+                        <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          {formatINR(filteredSummary.totalCollected)}
+                        </span>
+                      </div>
+                      {filteredSummary.totalDue > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Due:</span>
+                          <span className="text-sm font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
+                            {formatINR(filteredSummary.totalDue)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
-          </div>
-          <div className="border-t border-border/60 bg-muted/20 px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
-            <span>
-              Showing <strong>{filteredFees.length}</strong> of <strong>{fees.length}</strong> checked-in attendees
-            </span>
-            <div className="flex items-center gap-3 font-medium">
-              <span>Collected: <strong className="text-emerald-600 dark:text-emerald-400">{formatINR(filteredSummary.totalCollected)}</strong></span>
-              {filteredSummary.totalDue > 0 && (
-                <span>Due: <strong className="text-rose-600 dark:text-rose-400">{formatINR(filteredSummary.totalDue)}</strong></span>
-              )}
-            </div>
           </div>
         </div>
       ) : (
@@ -1017,6 +1171,20 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
           })}
         </div>
       )}
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedFees.length}
+        totalFilteredCount={sortedFees.length}
+        cashTotal={selectiveCashTotal}
+        upiTotal={selectiveUpiTotal}
+        grandTotal={selectiveGrandTotal}
+        extraTotalLabel="Due"
+        extraTotalAmount={selectiveDueTotal}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
     </div>
   );
 }

@@ -30,6 +30,9 @@ import {
   deleteReimbursement,
 } from '@/features/reimbursements';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const REIMBURSEMENT_EXPORT_FIELDS: ExportField<ReimbursementRecord>[] = [
   {
@@ -166,6 +169,109 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
       return matchesSearch && matchesStatus && matchesMode;
     });
   }, [reimbursements, searchQuery, statusFilter, modeFilter]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'date', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedReimbursements = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredReimbursements;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredReimbursements].sort((a, b) => {
+      if (sortState.field === 'amount') {
+        return (Number(a.amount) - Number(b.amount)) * dir;
+      }
+      if (sortState.field === 'date') {
+        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredReimbursements, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedReimbursements = useMemo(() => {
+    return sortedReimbursements.filter((r) => selectedIds.has(r.id));
+  }, [sortedReimbursements, selectedIds]);
+
+  const selectiveCashTotal = useMemo(
+    () =>
+      selectedReimbursements
+        .filter((r) => r.money_type_paid === 'Cash')
+        .reduce((s, r) => s + Number(r.amount), 0),
+    [selectedReimbursements]
+  );
+  const selectiveUpiTotal = useMemo(
+    () =>
+      selectedReimbursements
+        .filter((r) => r.money_type_paid === 'UPI')
+        .reduce((s, r) => s + Number(r.amount), 0),
+    [selectedReimbursements]
+  );
+  const selectiveGrandTotal = useMemo(
+    () => selectedReimbursements.reduce((s, r) => s + Number(r.amount), 0),
+    [selectedReimbursements]
+  );
+
+  // Filtered Summary Totals for Table Footer
+  const filteredCashTotal = useMemo(
+    () =>
+      filteredReimbursements
+        .filter((r) => r.money_type_paid === 'Cash')
+        .reduce((s, r) => s + Number(r.amount), 0),
+    [filteredReimbursements]
+  );
+  const filteredUpiTotal = useMemo(
+    () =>
+      filteredReimbursements
+        .filter((r) => r.money_type_paid === 'UPI')
+        .reduce((s, r) => s + Number(r.amount), 0),
+    [filteredReimbursements]
+  );
+  const filteredGrandTotal = useMemo(
+    () => filteredReimbursements.reduce((s, r) => s + Number(r.amount), 0),
+    [filteredReimbursements]
+  );
+
+  const isAllSelected =
+    sortedReimbursements.length > 0 && selectedReimbursements.length === sortedReimbursements.length;
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedReimbursements.map((r) => r.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
 
   // Refresh via API
   function handleRefresh() {
@@ -530,122 +636,196 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Date', 'Person', 'Mobile', 'Expense ID', 'Amount', 'Status', 'Paid Via', 'Notes', 'Actions'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  <th className="w-10 px-4 py-3 text-left">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all rows"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="date" currentSort={sortState} onSort={handleSort}>
+                    Date
+                  </SortableHeader>
+                  <SortableHeader field="person" currentSort={sortState} onSort={handleSort}>
+                    Person
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mobile
+                  </th>
+                  <SortableHeader field="expense_id" currentSort={sortState} onSort={handleSort}>
+                    Expense ID
+                  </SortableHeader>
+                  <SortableHeader field="amount" currentSort={sortState} onSort={handleSort}>
+                    Amount
+                  </SortableHeader>
+                  <SortableHeader field="status" currentSort={sortState} onSort={handleSort}>
+                    Status
+                  </SortableHeader>
+                  <SortableHeader field="money_type_paid" currentSort={sortState} onSort={handleSort}>
+                    Paid Via
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredReimbursements.map((r) => (
-                  <tr key={r.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {r.id}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                      {r.date}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      {r.person}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {r.mobile_number || '—'}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
-                      {r.expense_id}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-semibold text-foreground">
-                      {formatINR(r.amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge
-                        variant={r.status === 'Paid' ? 'default' : 'outline'}
-                        className={`text-xs ${
-                          r.status === 'Paid'
-                            ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
-                            : 'text-amber-600 border-amber-500/30 dark:text-amber-400'
-                        }`}
-                      >
-                        {r.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {r.money_type_paid ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {r.money_type_paid}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
+                {sortedReimbursements.map((r) => {
+                  const isSelected = selectedIds.has(r.id);
+                  return (
+                    <tr
+                      key={r.id}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isSelected && 'bg-primary/5 dark:bg-primary/10'
                       )}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
-                      title={r.notes || ''}
                     >
-                      {r.notes || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        {r.status === 'Pending' && (
+                      <td className="w-10 px-4 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(r.id)}
+                          aria-label={`Select ${r.person}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {r.id}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                        {r.date}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                        {r.person}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {r.mobile_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs font-semibold text-primary whitespace-nowrap">
+                        {r.expense_id}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-semibold text-foreground">
+                        {formatINR(r.amount)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge
+                          variant={r.status === 'Paid' ? 'default' : 'outline'}
+                          className={`text-xs ${
+                            r.status === 'Paid'
+                              ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                              : 'text-amber-600 border-amber-500/30 dark:text-amber-400'
+                          }`}
+                        >
+                          {r.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {r.money_type_paid ? (
+                          <Badge variant="secondary" className="text-xs">
+                            {r.money_type_paid}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
+                        title={r.notes || ''}
+                      >
+                        {r.notes || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {r.status === 'Pending' && (
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              onClick={() => setSettlingReimbursement(r)}
+                              className="text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                            >
+                              Settle
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="xs"
-                            onClick={() => setSettlingReimbursement(r)}
-                            className="text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                            onClick={() => setEditingReimbursement(r)}
+                            className="text-xs"
                           >
-                            Settle
+                            Edit
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setEditingReimbursement(r)}
-                          className="text-xs"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDeletingReimbursement(r)}
-                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setDeletingReimbursement(r)}
+                            className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                {filteredReimbursements.length === 0 && (
+                {sortedReimbursements.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No reimbursement records found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={5} className="px-4 py-3 text-sm text-foreground">
-                    Pending Settlement Total
+                <tr className="border-t border-border bg-muted/25 font-medium text-xs">
+                  <td colSpan={5} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">Filtered Claims</span>
+                      <span className="text-muted-foreground">({filteredReimbursements.length} records)</span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-amber-600 dark:text-amber-400">
-                    {formatINR(pendingTotal)}
+                  <td colSpan={3} className="px-4 py-3.5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Cash Paid:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredCashTotal)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">UPI Paid:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredUpiTotal)}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td colSpan={4} />
+                  <td colSpan={3} className="px-4 py-3.5 text-right">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total Claims:</span>
+                      <span className="text-sm font-extrabold text-foreground tabular-nums">
+                        {formatINR(filteredGrandTotal)}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedReimbursements.length}
+        totalFilteredCount={sortedReimbursements.length}
+        cashTotal={selectiveCashTotal}
+        upiTotal={selectiveUpiTotal}
+        grandTotal={selectiveGrandTotal}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
 
       {/* Edit Dialog */}
       <EditReimbursementDialog

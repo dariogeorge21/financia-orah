@@ -19,6 +19,9 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { fetchChurchDonationsData, deleteChurchDonation, updateChurchDonation } from '@/features/church-donations';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const CHURCH_EXPORT_FIELDS: ExportField<ChurchDonationRecord>[] = [
   {
@@ -158,6 +161,90 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
   const upiAmount = useMemo(() => {
     return donations.filter((d) => d.money_type === 'UPI').reduce((sum, d) => sum + Number(d.amount), 0);
   }, [donations]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'date', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedDonations = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredDonations;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredDonations].sort((a, b) => {
+      if (sortState.field === 'amount') {
+        return (Number(a.amount) - Number(b.amount)) * dir;
+      }
+      if (sortState.field === 'date') {
+        return (new Date(a.date).getTime() - new Date(b.date).getTime()) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredDonations, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedDonations = useMemo(() => {
+    return sortedDonations.filter((d) => selectedIds.has(d.id));
+  }, [sortedDonations, selectedIds]);
+
+  const selectiveCashTotal = useMemo(
+    () => selectedDonations.filter((d) => d.money_type === 'Cash').reduce((s, d) => s + Number(d.amount), 0),
+    [selectedDonations]
+  );
+  const selectiveUpiTotal = useMemo(
+    () => selectedDonations.filter((d) => d.money_type === 'UPI').reduce((s, d) => s + Number(d.amount), 0),
+    [selectedDonations]
+  );
+  const selectiveGrandTotal = selectiveCashTotal + selectiveUpiTotal;
+
+  // Filtered Summary Totals for Table Footer
+  const filteredCashTotal = useMemo(
+    () => filteredDonations.filter((d) => d.money_type === 'Cash').reduce((s, d) => s + Number(d.amount), 0),
+    [filteredDonations]
+  );
+  const filteredUpiTotal = useMemo(
+    () => filteredDonations.filter((d) => d.money_type === 'UPI').reduce((s, d) => s + Number(d.amount), 0),
+    [filteredDonations]
+  );
+  const filteredGrandTotal = filteredCashTotal + filteredUpiTotal;
+
+  const isAllSelected = sortedDonations.length > 0 && selectedDonations.length === sortedDonations.length;
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedDonations.map((d) => d.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
 
   async function handleToggleHandover(donation: ChurchDonationRecord) {
     const nextVal = donation.is_handed_over === false ? true : false;
@@ -488,139 +575,210 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {['ID', 'Date', 'Church / Convent Name', 'Contact Number', 'Collected By', 'Amount', 'Money Type', 'Notes', 'Actions'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                      >
-                        {h}
-                      </th>
-                    )
-                  )}
+                  <th className="w-10 px-4 py-3 text-left">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all rows"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="date" currentSort={sortState} onSort={handleSort}>
+                    Date
+                  </SortableHeader>
+                  <SortableHeader field="church_name" currentSort={sortState} onSort={handleSort}>
+                    Church / Convent Name
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Contact Number
+                  </th>
+                  <SortableHeader field="collected_by" currentSort={sortState} onSort={handleSort}>
+                    Collected By
+                  </SortableHeader>
+                  <SortableHeader field="amount" currentSort={sortState} onSort={handleSort}>
+                    Amount
+                  </SortableHeader>
+                  <SortableHeader field="money_type" currentSort={sortState} onSort={handleSort}>
+                    Money Type
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredDonations.map((d) => (
-                  <tr key={d.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {d.id}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                      {d.date}
-                    </td>
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <span>{d.church_name}</span>
-                        {d.screenshot_link && (
-                          <a
-                            href={d.screenshot_link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
-                            title="View Payment Screenshot"
-                          >
-                            Receipt ↗
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {d.contact_number || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {d.collected_by ? (
-                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 font-medium text-foreground">
-                          {d.collected_by}
-                        </span>
-                      ) : (
-                        '—'
+                {sortedDonations.map((d) => {
+                  const isSelected = selectedIds.has(d.id);
+                  return (
+                    <tr
+                      key={d.id}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isSelected && 'bg-primary/5 dark:bg-primary/10'
                       )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap font-bold text-emerald-600 dark:text-emerald-400">
-                      +{formatINR(d.amount)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {d.money_type === 'Cash' ? (
-                        d.is_handed_over === false ? (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHandover(d)}
-                            title="Pending with volunteer. Click to mark handed over to finance."
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
-                          >
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-                            Pending Handover
-                          </button>
+                    >
+                      <td className="w-10 px-4 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(d.id)}
+                          aria-label={`Select ${d.church_name}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                        {d.id}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
+                        {d.date}
+                      </td>
+                      <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <span>{d.church_name}</span>
+                          {d.screenshot_link && (
+                            <a
+                              href={d.screenshot_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-[10px] text-primary hover:underline bg-primary/10 px-1.5 py-0.5 rounded font-mono"
+                              title="View Payment Screenshot"
+                            >
+                              Receipt ↗
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {d.contact_number || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {d.collected_by ? (
+                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 font-medium text-foreground">
+                            {d.collected_by}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap font-bold text-emerald-600 dark:text-emerald-400">
+                        +{formatINR(d.amount)}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {d.money_type === 'Cash' ? (
+                          d.is_handed_over === false ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleHandover(d)}
+                              title="Pending with volunteer. Click to mark handed over to finance."
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Pending Handover
+                            </button>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            >
+                              Cash • In Hand
+                            </Badge>
+                          )
                         ) : (
                           <Badge
                             variant="outline"
-                            className="text-xs text-emerald-700 border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 dark:text-emerald-300"
+                            className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
                           >
-                            Cash • In Hand
+                            UPI
                           </Badge>
-                        )
-                      ) : (
-                        <Badge
-                          variant="outline"
-                          className="text-xs text-indigo-700 border-indigo-500/30 bg-indigo-50/60 dark:bg-indigo-950/30 dark:text-indigo-300"
-                        >
-                          UPI
-                        </Badge>
-                      )}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
-                      title={d.notes || ''}
-                    >
-                      {d.notes || '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setEditingDonation(d)}
-                          className="text-xs"
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          onClick={() => setDeletingDonation(d)}
-                          className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        )}
+                      </td>
+                      <td
+                        className="px-4 py-3 text-xs text-muted-foreground max-w-[160px] truncate"
+                        title={d.notes || ''}
+                      >
+                        {d.notes || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setEditingDonation(d)}
+                            className="text-xs"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => setDeletingDonation(d)}
+                            className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                {filteredDonations.length === 0 && (
+                {sortedDonations.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={10} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No church or convent donation records found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={5} className="px-4 py-3 text-sm text-foreground">
-                    Total Church Funds ({filteredDonations.length} records)
+                <tr className="border-t border-border bg-muted/25 font-medium text-xs">
+                  <td colSpan={4} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">Filtered Donations</span>
+                      <span className="text-muted-foreground">({filteredDonations.length} records)</span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                    +{formatINR(filteredDonations.reduce((s, d) => s + Number(d.amount), 0))}
+                  <td colSpan={3} className="px-4 py-3.5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Cash:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredCashTotal)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">UPI:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredUpiTotal)}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={3} className="px-4 py-3.5 text-right">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total (CASH+UPI):</span>
+                      <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        {formatINR(filteredGrandTotal)}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedDonations.length}
+        totalFilteredCount={sortedDonations.length}
+        cashTotal={selectiveCashTotal}
+        upiTotal={selectiveUpiTotal}
+        grandTotal={selectiveGrandTotal}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
 
       {/* Edit Donation Dialog */}
       <EditChurchDonationDialog

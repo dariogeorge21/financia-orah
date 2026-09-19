@@ -32,6 +32,9 @@ import { ViewModeToggle } from '../ViewModeToggle';
 import { useViewMode } from '@/hooks/useViewMode';
 import { deleteExpense } from '@/features/expenses';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const EXPENSE_EXPORT_FIELDS: ExportField<ExpenseRecord>[] = [
   {
@@ -235,6 +238,87 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
       return matchesSearch && matchesCat && matchesSource && matchesStatus && matchesSettlement;
     });
   }, [expenses, searchQuery, categoryFilter, sourceFilter, statusFilter, settlementFilter]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'id', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedExpenses = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredExpenses;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredExpenses].sort((a, b) => {
+      if (sortState.field === 'amount') {
+        return (Number(a.amount) - Number(b.amount)) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredExpenses, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedExpenses = useMemo(() => {
+    return sortedExpenses.filter((e) => selectedIds.has(e.id));
+  }, [sortedExpenses, selectedIds]);
+
+  const selectiveCashTotal = useMemo(
+    () => selectedExpenses.filter((e) => e.money_type === 'Cash').reduce((s, e) => s + Number(e.amount), 0),
+    [selectedExpenses]
+  );
+  const selectiveUpiTotal = useMemo(
+    () => selectedExpenses.filter((e) => e.money_type === 'UPI').reduce((s, e) => s + Number(e.amount), 0),
+    [selectedExpenses]
+  );
+  const selectiveGrandTotal = selectiveCashTotal + selectiveUpiTotal;
+
+  // Filtered Summary Totals for Table Footer
+  const filteredCashTotal = useMemo(
+    () => filteredExpenses.filter((e) => e.money_type === 'Cash').reduce((s, e) => s + Number(e.amount), 0),
+    [filteredExpenses]
+  );
+  const filteredUpiTotal = useMemo(
+    () => filteredExpenses.filter((e) => e.money_type === 'UPI').reduce((s, e) => s + Number(e.amount), 0),
+    [filteredExpenses]
+  );
+  const filteredGrandTotal = filteredCashTotal + filteredUpiTotal;
+
+  const isAllSelected = sortedExpenses.length > 0 && selectedExpenses.length === sortedExpenses.length;
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedExpenses.map((e) => e.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
 
   // Refresh via API
   function handleRefresh() {
@@ -808,31 +892,54 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {[
-                    'ID',
-                    'Category',
-                    'Description',
-                    'Amount',
-                    'Payment Mode',
-                    'Flow Status',
-                    'Volunteer / Payee',
-                    'Mobile',
-                    'Source',
-                    'Status',
-                    'Receipt',
-                    'Actions',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th className="w-10 px-4 py-3 text-left">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all rows"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="category" currentSort={sortState} onSort={handleSort}>
+                    Category
+                  </SortableHeader>
+                  <SortableHeader field="description" currentSort={sortState} onSort={handleSort}>
+                    Description
+                  </SortableHeader>
+                  <SortableHeader field="amount" currentSort={sortState} onSort={handleSort}>
+                    Amount
+                  </SortableHeader>
+                  <SortableHeader field="money_type" currentSort={sortState} onSort={handleSort}>
+                    Payment Mode
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Flow Status
+                  </th>
+                  <SortableHeader field="paid_by" currentSort={sortState} onSort={handleSort}>
+                    Volunteer / Payee
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Mobile
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Source
+                  </th>
+                  <SortableHeader field="status" currentSort={sortState} onSort={handleSort}>
+                    Status
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Receipt
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredExpenses.map((exp) => {
+                {sortedExpenses.map((exp) => {
+                  const isSelected = selectedIds.has(exp.id);
                   const isAdvanceGiven = exp.settlement_status === 'Advance Given';
                   const isSettled = exp.settlement_status === 'Settled';
                   const balAmt = Number(exp.balance_amount ?? 0);
@@ -841,10 +948,19 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                   return (
                     <tr
                       key={exp.id}
-                      className={`transition-colors hover:bg-muted/20 ${
-                        isAdvanceGiven ? 'bg-amber-50/20 dark:bg-amber-950/10' : ''
-                      }`}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isAdvanceGiven && 'bg-amber-50/20 dark:bg-amber-950/10',
+                        isSelected && 'bg-primary/5 dark:bg-primary/10'
+                      )}
                     >
+                      <td className="w-10 px-4 py-3">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(exp.id)}
+                          aria-label={`Select ${exp.id}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
                         {exp.id}
                       </td>
@@ -991,29 +1107,60 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                   );
                 })}
 
-                {filteredExpenses.length === 0 && (
+                {sortedExpenses.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={13} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No expense records found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={3} className="px-4 py-3 text-sm">
-                    Total Approved Spend
+                <tr className="border-t border-border bg-muted/25 font-medium text-xs">
+                  <td colSpan={5} className="px-4 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">Filtered Expenses</span>
+                      <span className="text-muted-foreground">({filteredExpenses.length} records)</span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-                    {formatINR(approved)}
+                  <td colSpan={4} className="px-4 py-3.5">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">Cash:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredCashTotal)}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">UPI:</span>
+                        <span className="font-bold tabular-nums">{formatINR(filteredUpiTotal)}</span>
+                      </div>
+                    </div>
                   </td>
-                  <td colSpan={8} />
+                  <td colSpan={4} className="px-4 py-3.5 text-right">
+                    <div className="inline-flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Total (CASH+UPI):</span>
+                      <span className="text-sm font-extrabold text-rose-600 dark:text-rose-400 tabular-nums">
+                        {formatINR(filteredGrandTotal)}
+                      </span>
+                    </div>
+                  </td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       )}
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedExpenses.length}
+        totalFilteredCount={sortedExpenses.length}
+        cashTotal={selectiveCashTotal}
+        upiTotal={selectiveUpiTotal}
+        grandTotal={selectiveGrandTotal}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
 
       {/* Settle Expense Dialog */}
       <SettleExpenseDialog

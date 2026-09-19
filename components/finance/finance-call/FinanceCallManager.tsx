@@ -30,6 +30,9 @@ import {
   updateFinanceCall,
 } from '@/features/finance-calls';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
+import { Checkbox } from '@/components/ui/checkbox';
+import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { cn } from '@/lib/utils';
 
 const FINANCE_CALL_EXPORT_FIELDS: ExportField<FinanceCallRecord>[] = [
   {
@@ -187,6 +190,108 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
       return matchesSearch && matchesCaller && matchesStatus;
     });
   }, [calls, searchQuery, callerFilter, statusFilter]);
+
+  // Table Sorting
+  const [sortState, setSortState] = useState<SortState<string>>({ field: 'id', direction: 'desc' });
+
+  function handleSort(field: string) {
+    setSortState((prev) => {
+      if (prev.field === field) {
+        if (prev.direction === 'asc') return { field, direction: 'desc' };
+        if (prev.direction === 'desc') return { field: null, direction: null };
+        return { field, direction: 'asc' };
+      }
+      return { field, direction: 'asc' };
+    });
+  }
+
+  const sortedCalls = useMemo(() => {
+    if (!sortState.field || !sortState.direction) return filteredCalls;
+    const dir = sortState.direction === 'asc' ? 1 : -1;
+    return [...filteredCalls].sort((a, b) => {
+      if (sortState.field === 'promised') {
+        return (Number(a.promised) - Number(b.promised)) * dir;
+      }
+      if (sortState.field === 'received') {
+        return (Number(a.received) - Number(b.received)) * dir;
+      }
+      if (sortState.field === 'pending') {
+        const pendingA = Math.max(0, Number(a.promised) - Number(a.received));
+        const pendingB = Math.max(0, Number(b.promised) - Number(b.received));
+        return (pendingA - pendingB) * dir;
+      }
+      const valA = String((a as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      const valB = String((b as unknown as Record<string, unknown>)[sortState.field!] ?? '').toLowerCase();
+      return valA.localeCompare(valB) * dir;
+    });
+  }, [filteredCalls, sortState]);
+
+  // Selective Total State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const selectedCalls = useMemo(() => {
+    return sortedCalls.filter((c) => selectedIds.has(c.id));
+  }, [sortedCalls, selectedIds]);
+
+  const selectiveCashReceived = useMemo(
+    () => selectedCalls.filter((c) => c.money_type === 'Cash').reduce((s, c) => s + Number(c.received), 0),
+    [selectedCalls]
+  );
+  const selectiveUpiReceived = useMemo(
+    () => selectedCalls.filter((c) => c.money_type === 'UPI').reduce((s, c) => s + Number(c.received), 0),
+    [selectedCalls]
+  );
+  const selectiveGrandTotal = selectiveCashReceived + selectiveUpiReceived;
+  const selectivePending = useMemo(
+    () => selectedCalls.reduce((s, c) => s + Math.max(0, Number(c.promised) - Number(c.received)), 0),
+    [selectedCalls]
+  );
+
+  // Filtered Totals for Table Footer
+  const filteredCashReceived = useMemo(
+    () => filteredCalls.filter((c) => c.money_type === 'Cash').reduce((s, c) => s + Number(c.received), 0),
+    [filteredCalls]
+  );
+  const filteredUpiReceived = useMemo(
+    () => filteredCalls.filter((c) => c.money_type === 'UPI').reduce((s, c) => s + Number(c.received), 0),
+    [filteredCalls]
+  );
+  const filteredPromised = useMemo(
+    () => filteredCalls.reduce((s, c) => s + Number(c.promised), 0),
+    [filteredCalls]
+  );
+  const filteredReceived = useMemo(
+    () => filteredCalls.reduce((s, c) => s + Number(c.received), 0),
+    [filteredCalls]
+  );
+  const filteredPending = useMemo(
+    () => filteredCalls.reduce((s, c) => s + Math.max(0, Number(c.promised) - Number(c.received)), 0),
+    [filteredCalls]
+  );
+
+  function handleToggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleToggleSelectAll() {
+    if (selectedIds.size === sortedCalls.length && sortedCalls.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sortedCalls.map((c) => c.id)));
+    }
+  }
+
+  function handleClearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  const isAllSelected = sortedCalls.length > 0 && sortedCalls.every((c) => selectedIds.has(c.id));
+  const isSomeSelected = sortedCalls.some((c) => selectedIds.has(c.id));
 
   // Handle Handover Toggle
   async function handleToggleHandover(fc: FinanceCallRecord) {
@@ -590,38 +695,72 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50 bg-muted/30">
-                  {[
-                    'ID',
-                    'Contact Name',
-                    'Mobile',
-                    'Caller',
-                    'Promised',
-                    'Received',
-                    'Pending',
-                    'Progress',
-                    'Status',
-                    'Notes',
-                    'Actions',
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground last:text-right"
-                    >
-                      {h}
-                    </th>
-                  ))}
+                  <th className="w-10 px-3 py-3 text-center">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleToggleSelectAll}
+                      aria-label="Select all"
+                    />
+                  </th>
+                  <SortableHeader field="id" currentSort={sortState} onSort={handleSort}>
+                    ID
+                  </SortableHeader>
+                  <SortableHeader field="person_name" currentSort={sortState} onSort={handleSort}>
+                    Contact Name
+                  </SortableHeader>
+                  <SortableHeader field="mobile_number" currentSort={sortState} onSort={handleSort}>
+                    Mobile
+                  </SortableHeader>
+                  <SortableHeader field="caller_name" currentSort={sortState} onSort={handleSort}>
+                    Caller
+                  </SortableHeader>
+                  <SortableHeader field="promised" currentSort={sortState} onSort={handleSort}>
+                    Promised
+                  </SortableHeader>
+                  <SortableHeader field="received" currentSort={sortState} onSort={handleSort}>
+                    Received
+                  </SortableHeader>
+                  <SortableHeader field="pending" currentSort={sortState} onSort={handleSort}>
+                    Pending
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Progress
+                  </th>
+                  <SortableHeader field="status" currentSort={sortState} onSort={handleSort}>
+                    Status
+                  </SortableHeader>
+                  <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Notes
+                  </th>
+                  <th className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/40">
-                {filteredCalls.map((fc) => {
+                {sortedCalls.map((fc) => {
                   const pct =
                     fc.promised > 0
                       ? Math.min(100, Math.round((Number(fc.received) / Number(fc.promised)) * 100))
                       : 0;
                   const pendingAmt = Math.max(0, Number(fc.promised) - Number(fc.received));
+                  const isSelected = selectedIds.has(fc.id);
 
                   return (
-                    <tr key={fc.id} className="transition-colors hover:bg-muted/20">
+                    <tr
+                      key={fc.id}
+                      className={cn(
+                        'transition-colors hover:bg-muted/20',
+                        isSelected && 'bg-primary/5'
+                      )}
+                    >
+                      <td className="w-10 px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => handleToggleSelect(fc.id)}
+                          aria-label={`Select ${fc.person_name}`}
+                        />
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
                         {fc.id}
                       </td>
@@ -733,27 +872,40 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                   );
                 })}
 
-                {filteredCalls.length === 0 && (
+                {sortedCalls.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    <td colSpan={12} className="px-4 py-8 text-center text-xs text-muted-foreground">
                       No finance call records found matching your filters.
                     </td>
                   </tr>
                 )}
               </tbody>
               <tfoot>
-                <tr className="border-t border-border bg-muted/20 font-semibold">
-                  <td colSpan={4} className="px-4 py-3 text-sm">
-                    Total ({active.length} Active Pledges)
+                <tr className="border-t border-border bg-muted/30 font-semibold">
+                  <td colSpan={5} className="px-4 py-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-foreground">
+                        Total ({filteredCalls.length} {filteredCalls.length === 1 ? 'record' : 'records'})
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                        Cash: {formatINR(filteredCashReceived)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-300">
+                        UPI: {formatINR(filteredUpiReceived)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-foreground/5 px-2 py-0.5 text-[11px] font-semibold text-foreground">
+                        Total Received (CASH+UPI): {formatINR(filteredCashReceived + filteredUpiReceived)}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-foreground">
-                    {formatINR(totalPromised)}
+                  <td className="px-4 py-3 text-sm font-bold text-foreground whitespace-nowrap">
+                    {formatINR(filteredPromised)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                    {formatINR(totalReceived)}
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    {formatINR(filteredReceived)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400">
-                    {formatINR(totalPending)}
+                  <td className="px-4 py-3 text-sm font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                    {formatINR(filteredPending)}
                   </td>
                   <td colSpan={4} />
                 </tr>
@@ -812,6 +964,20 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Selective Total Bar */}
+      <TableSelectionBar
+        selectedCount={selectedIds.size}
+        totalFilteredCount={sortedCalls.length}
+        cashTotal={selectiveCashReceived}
+        upiTotal={selectiveUpiReceived}
+        grandTotal={selectiveGrandTotal}
+        extraTotalLabel="Pending"
+        extraTotalAmount={selectivePending}
+        onSelectAll={handleToggleSelectAll}
+        onClear={handleClearSelection}
+        isAllSelected={isAllSelected}
+      />
     </div>
   );
 }

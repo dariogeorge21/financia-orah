@@ -24,7 +24,7 @@ import {
 } from '@/features/personal-commitments';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const COMMITMENT_EXPORT_FIELDS: ExportField<PersonalCommitmentRecord>[] = [
@@ -585,6 +585,7 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                       <span className="font-mono text-[11px] text-muted-foreground">
                         {com.id}
                       </span>
+                      {com.created_at && <DateFlagBadge date={com.created_at} />}
                     </div>
 
                     {com.caller_name && (
@@ -857,25 +858,16 @@ export function CommitmentManager({ initialCommitments }: CommitmentManagerProps
                       </td>
                       <td className="px-4 py-3 text-xs whitespace-nowrap">
                         {com.due_date ? (
-                          com.status !== 'Fully Received' && com.status !== 'Cancelled' ? (
-                            com.due_date < todayStr ? (
-                              <span className="inline-flex items-center gap-1 font-semibold text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/25">
-                                ⚠️ {formatDisplayDate(com.due_date)}
-                              </span>
-                            ) : com.due_date === todayStr ? (
-                              <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/25">
-                                🔔 Today
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground font-medium">
-                                {formatDisplayDate(com.due_date)}
-                              </span>
-                            )
-                          ) : (
-                            <span className="text-muted-foreground line-through text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className={com.status === 'Fully Received' || com.status === 'Cancelled' ? 'text-muted-foreground line-through text-[11px]' : 'font-medium'}>
                               {formatDisplayDate(com.due_date)}
                             </span>
-                          )
+                            <DateFlagBadge
+                              date={com.due_date}
+                              mode="due"
+                              isCompleted={com.status === 'Fully Received' || com.status === 'Cancelled'}
+                            />
+                          </div>
                         ) : (
                           <span className="text-muted-foreground/60">—</span>
                         )}

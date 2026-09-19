@@ -13,7 +13,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 
 const FEE_EXPORT_FIELDS: ExportField<FeeRecord>[] = [
   {
@@ -998,12 +998,15 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
                       {/* Check-in Time */}
                       <td className="py-3 px-4 text-muted-foreground whitespace-nowrap text-[11px]">
                         {fee.checked_in_at ? (
-                          <>
-                            <div>{new Date(fee.checked_in_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <span>{new Date(fee.checked_in_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                              <DateFlagBadge date={fee.checked_in_at} />
+                            </div>
                             <div className="text-[10px] text-muted-foreground/70">
                               {new Date(fee.checked_in_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                             </div>
-                          </>
+                          </div>
                         ) : (
                           '—'
                         )}
@@ -1160,11 +1163,14 @@ export function FeeManager({ initialFees }: FeeManagerProps) {
                       {formatFeeStatusLabel(fee.payment_status)}
                     </span>
                   </div>
-                  <span>
-                    {fee.checked_in_at
-                      ? new Date(fee.checked_in_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-                      : ''}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span>
+                      {fee.checked_in_at
+                        ? new Date(fee.checked_in_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+                        : ''}
+                    </span>
+                    <DateFlagBadge date={fee.checked_in_at} />
+                  </div>
                 </div>
               </div>
             );

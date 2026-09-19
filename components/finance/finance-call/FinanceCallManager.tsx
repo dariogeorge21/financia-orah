@@ -31,7 +31,7 @@ import {
 } from '@/features/finance-calls';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const FINANCE_CALL_EXPORT_FIELDS: ExportField<FinanceCallRecord>[] = [
@@ -562,6 +562,7 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                       <span className="font-mono text-[11px] text-muted-foreground">
                         {fc.id}
                       </span>
+                      {fc.created_at && <DateFlagBadge date={fc.created_at} />}
                     </div>
 
                     {fc.caller_name && (
@@ -762,7 +763,10 @@ export function FinanceCallManager({ initialCalls }: FinanceCallManagerProps) {
                         />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        {fc.id}
+                        <div className="flex items-center gap-1.5">
+                          <span>{fc.id}</span>
+                          {fc.created_at && <DateFlagBadge date={fc.created_at} />}
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
                         <div className="flex items-center gap-1.5">

@@ -20,7 +20,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { fetchCouponsData, deleteCoupon, updateCoupon } from '@/features/coupons';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const COUPON_EXPORT_FIELDS: ExportField<CouponRecord>[] = [
@@ -567,7 +567,10 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                         UPI
                       </Badge>
                     )}
-                    <span className="text-xs text-muted-foreground">{c.date}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{c.date}</span>
+                      <DateFlagBadge date={c.date} />
+                    </div>
                   </div>
                 </div>
 
@@ -730,7 +733,10 @@ export function CouponManager({ initialCoupons }: CouponManagerProps) {
                         {c.id}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                        {c.date}
+                        <div className="flex items-center gap-1.5">
+                          <span>{c.date}</span>
+                          <DateFlagBadge date={c.date} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
                         <div className="flex items-center gap-1.5">

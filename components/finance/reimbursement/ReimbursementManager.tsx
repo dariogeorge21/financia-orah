@@ -31,7 +31,7 @@ import {
 } from '@/features/reimbursements';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const REIMBURSEMENT_EXPORT_FIELDS: ExportField<ReimbursementRecord>[] = [
@@ -541,7 +541,10 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
                       {r.expense_id}
                     </span>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">{r.date}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="text-xs text-muted-foreground">{r.date}</span>
+                    <DateFlagBadge date={r.date} />
+                  </div>
                 </div>
 
                 {/* Person & Amount */}
@@ -697,7 +700,10 @@ export function ReimbursementManager({ initialReimbursements }: ReimbursementMan
                         {r.id}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                        {r.date}
+                        <div className="flex items-center gap-1.5">
+                          <span>{r.date}</span>
+                          <DateFlagBadge date={r.date} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
                         {r.person}

@@ -27,7 +27,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { deleteIncome, updateIncome } from '@/features/income';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const TYPE_COLORS: Record<string, string> = {
@@ -642,7 +642,10 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
                     <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                       +{formatINR(inc.amount)}
                     </span>
-                    <span className="text-xs text-muted-foreground">{inc.date}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{inc.date}</span>
+                      <DateFlagBadge date={inc.date} />
+                    </div>
                   </div>
 
                   {inc.description && (
@@ -777,7 +780,10 @@ export function IncomeManager({ initialIncome, initialMoneyPosition }: IncomeMan
                         {inc.id}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                        {inc.date}
+                        <div className="flex items-center gap-1.5">
+                          <span>{inc.date}</span>
+                          <DateFlagBadge date={inc.date} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span

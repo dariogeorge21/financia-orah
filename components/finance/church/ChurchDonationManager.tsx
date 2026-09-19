@@ -20,7 +20,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { fetchChurchDonationsData, deleteChurchDonation, updateChurchDonation } from '@/features/church-donations';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const CHURCH_EXPORT_FIELDS: ExportField<ChurchDonationRecord>[] = [
@@ -484,7 +484,10 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
                         UPI
                       </Badge>
                     )}
-                    <span className="text-xs text-muted-foreground">{d.date}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{d.date}</span>
+                      <DateFlagBadge date={d.date} />
+                    </div>
                   </div>
                 </div>
 
@@ -633,7 +636,10 @@ export function ChurchDonationManager({ initialDonations }: ChurchDonationManage
                         {d.id}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-muted-foreground text-xs">
-                        {d.date}
+                        <div className="flex items-center gap-1.5">
+                          <span>{d.date}</span>
+                          <DateFlagBadge date={d.date} />
+                        </div>
                       </td>
                       <td className="px-4 py-3 font-medium whitespace-nowrap text-foreground">
                         <div className="flex items-center gap-1.5">

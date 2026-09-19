@@ -33,7 +33,7 @@ import { useViewMode } from '@/hooks/useViewMode';
 import { deleteExpense } from '@/features/expenses';
 import { ExportCsvDialog, type ExportField } from '@/components/finance/export';
 import { Checkbox } from '@/components/ui/checkbox';
-import { SortableHeader, type SortState, TableSelectionBar } from '@/components/finance/table';
+import { SortableHeader, type SortState, TableSelectionBar, DateFlagBadge } from '@/components/finance/table';
 import { cn } from '@/lib/utils';
 
 const EXPENSE_EXPORT_FIELDS: ExportField<ExpenseRecord>[] = [
@@ -678,6 +678,7 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                       <span className="font-mono text-[11px] text-muted-foreground">
                         {exp.id}
                       </span>
+                      {exp.created_at && <DateFlagBadge date={exp.created_at} />}
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
@@ -962,7 +963,10 @@ export function ExpenseManager({ initialExpenses, initialMoneyPosition }: Expens
                         />
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        {exp.id}
+                        <div className="flex items-center gap-1.5">
+                          <span>{exp.id}</span>
+                          {exp.created_at && <DateFlagBadge date={exp.created_at} />}
+                        </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-700 dark:text-slate-300">

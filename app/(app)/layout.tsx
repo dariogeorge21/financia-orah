@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { AppSidebar } from '@/components/finance/AppSidebar';
 import { ThemeToggle } from '@/components/finance/ThemeToggle';
 import { QuickQrDialog } from '@/components/finance/QuickQrDialog';
+import { HeaderCalculator } from '@/components/finance/HeaderCalculator';
 import { getLocalQrCodes } from '@/lib/qr';
 import {
   SidebarInset,
@@ -41,6 +42,7 @@ export default async function AppLayout({
               <span className="hidden text-xs text-muted-foreground sm:block">
                 {user.email}
               </span>
+              <HeaderCalculator />
               <QuickQrDialog initialQrCodes={initialQrCodes} />
               <ThemeToggle />
             </div>

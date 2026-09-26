@@ -28,6 +28,8 @@ import type {
 } from '@/lib/types';
 import Link from 'next/link';
 import { DashboardExportDialog, type DashboardTransaction } from '@/components/finance/DashboardExportDialog';
+import { MasterLedgerSheet } from '@/components/finance/export/MasterLedgerSheet';
+import { buildLedgerRows } from '@/lib/export/ledger';
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -64,6 +66,14 @@ export default async function DashboardPage() {
 
   const incomeChart = incomeByType(income);
   const expenseChart = expenseByCategory(expenses);
+
+  // ── Master Ledger (all sources, sorted ascending by date internally) ──
+  const ledgerRows = buildLedgerRows(income, expenses);
+  const generatedAt = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
 
   const recentIncome = income.slice(0, 5);
   const recentExpenses = expenses.slice(0, 5);
@@ -424,6 +434,19 @@ export default async function DashboardPage() {
 
       {/* Recent Transactions */}
       <RecentTransactions income={recentIncome} expenses={recentExpenses} />
+
+      {/* ── Master Financial Ledger Export Sheet ─────────────────────────── */}
+      <section>
+        <div className="flex flex-col gap-1 mb-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Exportable Financial Report
+          </h2>
+          <p className="text-xs text-muted-foreground/70">
+            Complete bank-statement style ledger — all transactions sorted chronologically with running Cash &amp; UPI balances.
+          </p>
+        </div>
+        <MasterLedgerSheet rows={ledgerRows} generatedAt={generatedAt} />
+      </section>
     </div>
   );
 }
